@@ -20,7 +20,7 @@ import {
   RISK_THRESHOLDS,
   PRIMARY_SYMPTOM_HIGH_OVERRIDE,
   MAX_RAW_SCORE
-} from '../../shared/triageSchema.js'
+} from '../shared/triageSchema.js'
 
 // =============================================================
 // PRIVATE HELPER: Get duration multiplier for given week count
