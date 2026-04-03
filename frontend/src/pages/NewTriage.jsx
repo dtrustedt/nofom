@@ -2,7 +2,7 @@
 import { useState }             from 'react'
 import { useNavigate }          from 'react-router-dom'
 import Header                   from '../components/layout/Header'
-import { SYMPTOMS }             from '../../shared/triageSchema.js'
+import { SYMPTOMS }             from '../shared/triageSchema.js'
 import { runTriage }            from '../engine/triageRules'
 import { generateReferral }     from '../engine/referralEngine'
 import { saveTriageLocally }    from '../db/localDb'
