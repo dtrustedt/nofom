@@ -8,7 +8,7 @@ const {
   RISK_THRESHOLDS,
   PRIMARY_SYMPTOM_HIGH_OVERRIDE,
   MAX_RAW_SCORE
-} = require('../../../shared/triageSchema.cjs')
+} = require('./triageSchema.cjs')
 
 function getDurationMultiplier(durationWeeks) {
   const weeks = Number(durationWeeks) || 0
