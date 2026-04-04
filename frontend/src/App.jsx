@@ -1,43 +1,80 @@
 // frontend/src/App.jsx
-import { useEffect }              from 'react'
+import { useEffect }               from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { supabase }               from './lib/supabaseClient'
-import useAppStore                from './store/useAppStore'
-import { registerSyncOnReconnect } from './sync/syncService'
-import { getPendingSyncCount }    from './db/localDb'
+import { supabase }                from './lib/supabaseClient'
+import useAppStore                 from './store/useAppStore'
+import { registerSyncOnReconnect, retryFailedSyncItems } from './sync/syncService'
+import { getPendingSyncCount }     from './db/localDb'
 
-import Login          from './pages/Login'
-import Dashboard      from './pages/Dashboard'
-import NewTriage      from './pages/NewTriage'
-import TriageResult   from './pages/TriageResult'
-import OfflineBanner  from './components/layout/OfflineBanner'
+import Login         from './pages/Login'
+import Dashboard     from './pages/Dashboard'
+import NewTriage     from './pages/NewTriage'
+import TriageResult  from './pages/TriageResult'
+import OfflineBanner from './components/layout/OfflineBanner'
 
-// ── Protected Route wrapper ──────────────────────────────────
 function Protected({ children }) {
   const { user, authLoading } = useAppStore()
   if (authLoading) return (
-    <div className="min-h-screen flex items-center justify-center">
-      <p className="text-slate-500 text-sm">Loading…</p>
+    <div style={{ minHeight:'100dvh', display:'flex',
+                  alignItems:'center', justifyContent:'center' }}>
+      <p style={{ color:'var(--color-text-muted)', fontSize:'0.875rem' }}>
+        Loading…
+      </p>
     </div>
   )
   return user ? children : <Navigate to="/login" replace />
 }
 
+// Fetch the health_workers row for the logged-in user
+async function fetchWorkerProfile(userId, setWorkerProfile) {
+  if (!userId) return
+  const { data, error } = await supabase
+    .from('health_workers')
+    .select('id, full_name, role, facility_id')
+    .eq('auth_user_id', userId)
+    .single()
+
+  if (error) {
+    console.warn('[Auth] Could not fetch worker profile:', error.message)
+    return
+  }
+
+  console.log('[Auth] Worker profile loaded:', data)
+  setWorkerProfile(data)
+}
+
 export default function App() {
-  const { setSession, setOnline, setPendingSyncCount } = useAppStore()
+  const {
+    setSession, setOnline,
+    setPendingSyncCount, setWorkerProfile
+  } = useAppStore()
 
   // ── 1. Bootstrap Supabase session ────────────────────────
   useEffect(() => {
+    // Get existing session on mount
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session)
+      if (session?.user?.id) {
+        fetchWorkerProfile(session.user.id, setWorkerProfile)
+      }
     })
+
+    // Listen for login / logout events
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => setSession(session)
+      (_event, session) => {
+        setSession(session)
+        if (session?.user?.id) {
+          fetchWorkerProfile(session.user.id, setWorkerProfile)
+        } else {
+          setWorkerProfile(null)
+        }
+      }
     )
+
     return () => subscription.unsubscribe()
   }, [])
 
-  // ── 2. Track online/offline ───────────────────────────────
+  // ── 2. Track connectivity ─────────────────────────────────
   useEffect(() => {
     const goOnline  = () => setOnline(true)
     const goOffline = () => setOnline(false)
@@ -49,12 +86,19 @@ export default function App() {
     }
   }, [])
 
-  // ── 3. Register sync-on-reconnect ────────────────────────
+  // ── 3. Sync on reconnect + retry failed on startup ────────
   useEffect(() => {
-    registerSyncOnReconnect(() => useAppStore.getState().session?.access_token)
+    registerSyncOnReconnect(
+      () => useAppStore.getState().session?.access_token
+    )
+    if (navigator.onLine) {
+      retryFailedSyncItems(
+        () => useAppStore.getState().session?.access_token
+      ).catch(console.warn)
+    }
   }, [])
 
-  // ── 4. Refresh pending sync count every 10s ──────────────
+  // ── 4. Refresh pending sync count every 10s ───────────────
   useEffect(() => {
     const refresh = async () => {
       const count = await getPendingSyncCount()
@@ -67,26 +111,13 @@ export default function App() {
 
   return (
     <BrowserRouter>
-      {/* Offline banner sits outside routes — always visible */}
       <OfflineBanner />
-
       <Routes>
-        <Route path="/login" element={<Login />} />
-
-        <Route path="/" element={
-          <Protected><Dashboard /></Protected>
-        }/>
-
-        <Route path="/triage/new" element={
-          <Protected><NewTriage /></Protected>
-        }/>
-
-        <Route path="/triage/result" element={
-          <Protected><TriageResult /></Protected>
-        }/>
-
-        {/* Catch-all */}
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="/login"          element={<Login />} />
+        <Route path="/"               element={<Protected><Dashboard /></Protected>} />
+        <Route path="/triage/new"     element={<Protected><NewTriage /></Protected>} />
+        <Route path="/triage/result"  element={<Protected><TriageResult /></Protected>} />
+        <Route path="*"               element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
   )

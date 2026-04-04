@@ -87,15 +87,16 @@ export default function NewTriage() {
     setSubmitting(true)
     try {
       const triageResult = runTriage({
-        age_months: totalAgeMonths, symptoms,
-        duration_weeks: parseInt(durationWeeks),
+        age_months:      totalAgeMonths,
+        symptoms,
+        duration_weeks:  parseInt(durationWeeks),
         prior_treatment: priorTreatment
       })
       const referral    = generateReferral(triageResult, symptoms)
       const localRecord = await saveTriageLocally({
         patient_name:    patientName.trim() || 'Patient',
         age_months:      totalAgeMonths,
-        symptoms,
+        symptoms:        symptoms,
         duration_weeks:  parseInt(durationWeeks),
         prior_treatment: priorTreatment,
         risk_level:      triageResult.risk_level,
@@ -110,11 +111,12 @@ export default function NewTriage() {
       })
       setLastTriageResult({
         ...triageResult,
-        referral,
-        local_id:    localRecord.local_id,
+        referral:     referral,
+        local_id:     localRecord.local_id,
         patient_name: patientName.trim() || 'Patient',
-        age_months:  totalAgeMonths,
-        assessed_at: localRecord.submitted_at
+        age_months:   totalAgeMonths,
+        assessed_at:  localRecord.submitted_at,
+        symptoms:     symptoms
       })
       if (isOnline) syncPendingRecords(session?.access_token).catch(console.warn)
       navigate('/triage/result')

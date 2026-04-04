@@ -59,9 +59,8 @@ function SymptomCheckbox({ symptom, checked, onChange }) {
 
 export default function NewTriage() {
   const navigate              = useNavigate()
-  const { session, isOnline } = useAppStore()
-  const setLastTriageResult   = useAppStore(s => s.setLastTriageResult)
-
+  const { session, isOnline, workerProfile } = useAppStore()
+  const setLastTriageResult = useAppStore(s => s.setLastTriageResult)
   const [patientName,    setPatientName]  = useState('')
   const [ageYears,       setAgeYears]     = useState('')
   const [ageMonths,      setAgeMonths]    = useState('')
@@ -93,12 +92,15 @@ export default function NewTriage() {
         prior_treatment: priorTreatment
       })
       const referral    = generateReferral(triageResult, symptoms)
+      
       const localRecord = await saveTriageLocally({
         patient_name:    patientName.trim() || 'Patient',
         age_months:      totalAgeMonths,
         symptoms:        symptoms,
         duration_weeks:  parseInt(durationWeeks),
         prior_treatment: priorTreatment,
+        submitted_by:    workerProfile?.id || null,       // ← ADD THIS
+        facility_id:     workerProfile?.facility_id || null, // ← ADD THIS
         risk_level:      triageResult.risk_level,
         risk_score:      triageResult.risk_score,
         score_breakdown: triageResult.score_breakdown,
