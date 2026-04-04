@@ -1,15 +1,17 @@
 // backend/src/routes/triage.js
 'use strict'
 
-const express            = require('express')
-const { v4: uuidv4 }     = require('uuid')
-const { runTriage }      = require('../engine/triageRules')
+const express              = require('express')
+const { v4: uuidv4 }       = require('uuid')
+const { runTriage }        = require('../engine/triageRules')
 const { generateReferral } = require('../engine/referralEngine')
-const supabase           = require('../db/supabase')
+const supabase             = require('../db/supabase')
+const { verifyToken }      = require('../middleware/auth')
 
 const router = express.Router()
 
-router.post('/', async (req, res, next) => {
+// ── POST /api/triage ─────────────────────────────────────────
+router.post('/', verifyToken, async (req, res, next) => {
   try {
     const {
       local_id, patient_name, age_months, symptoms,
@@ -21,45 +23,46 @@ router.post('/', async (req, res, next) => {
       return res.status(400).json({ error: 'age_months and symptoms are required' })
     }
 
-    // ── 1. Auto-create patient if no patient_id provided ────
+    // Use worker from token if submitted_by not in payload
+    const workerIdToUse = submitted_by || req.worker?.id || null
+    const facilityToUse = facility_id  || req.worker?.facility_id || null
+
+    // ── Auto-create patient ──────────────────────────────────
     let resolvedPatientId = req.body.patient_id || null
 
     if (!resolvedPatientId) {
       const { data: newPatient, error: patientError } = await supabase
         .from('patients')
         .insert({
-          local_id:   local_id ? `pat-${local_id}` : uuidv4(),
-          age_months: Number(age_months),
-          sex:        'unknown',
+          local_id:      local_id ? `pat-${local_id}` : uuidv4(),
+          age_months:    Number(age_months),
+          sex:           'unknown',
           guardian_name: patient_name || null,
-          facility_id:   facility_id  || null,
-          created_by:    submitted_by || null,
+          facility_id:   facilityToUse,
+          created_by:    workerIdToUse,
           synced_at:     new Date().toISOString()
         })
         .select('id')
         .single()
 
       if (patientError) {
-        // Non-fatal — log and continue without patient link
-        console.warn('[Triage] Could not create patient record:', patientError.message)
+        console.warn('[Triage] Patient create failed:', patientError.message)
       } else {
         resolvedPatientId = newPatient.id
       }
     }
 
-    // ── 2. Run the rule engine ───────────────────────────────
-    const triageResult = runTriage({
-      age_months, symptoms, duration_weeks, prior_treatment
-    })
-    const referral = generateReferral(triageResult, symptoms)
+    // ── Run triage engine ────────────────────────────────────
+    const triageResult = runTriage({ age_months, symptoms, duration_weeks, prior_treatment })
+    const referral     = generateReferral(triageResult, symptoms)
 
-    // ── 3. Persist triage assessment ────────────────────────
+    // ── Upsert — handles duplicate local_id from offline sync ─
     const { data, error } = await supabase
       .from('triage_assessments')
-      .insert({
+      .upsert({
         local_id:                    local_id || uuidv4(),
-        patient_id:                  resolvedPatientId,       // ← now populated
-        submitted_by:                submitted_by || null,    // ← now populated
+        patient_id:                  resolvedPatientId,
+        submitted_by:                workerIdToUse,
         symptom_weight_loss:         Boolean(symptoms.unexplained_weight_loss),
         symptom_persistent_fever:    Boolean(symptoms.persistent_fever),
         symptom_abdominal_mass:      Boolean(symptoms.abdominal_mass),
@@ -83,7 +86,8 @@ router.post('/', async (req, res, next) => {
         offline_created:             Boolean(offline_created),
         submitted_at:                submitted_at || new Date().toISOString(),
         synced_at:                   new Date().toISOString()
-      })
+      },
+      { onConflict: 'local_id' })   // ← idempotent: duplicate syncs are safe
       .select()
       .single()
 
@@ -103,25 +107,11 @@ router.post('/', async (req, res, next) => {
       created_at:       data.created_at
     })
 
-  } catch (err) {
-    next(err)
-  }
-})
-
-router.get('/:id', async (req, res, next) => {
-  try {
-    const { data, error } = await supabase
-      .from('triage_assessments')
-      .select('*')
-      .eq('id', req.params.id)
-      .single()
-    if (error) throw error
-    if (!data) return res.status(404).json({ error: 'Not found' })
-    res.json(data)
   } catch (err) { next(err) }
 })
 
-router.get('/', async (req, res, next) => {
+// ── GET /api/triage ──────────────────────────────────────────
+router.get('/', verifyToken, async (req, res, next) => {
   try {
     const page  = parseInt(req.query.page)  || 1
     const limit = parseInt(req.query.limit) || 20
@@ -135,6 +125,20 @@ router.get('/', async (req, res, next) => {
 
     if (error) throw error
     res.json({ data, total: count, page, limit })
+  } catch (err) { next(err) }
+})
+
+// ── GET /api/triage/:id ──────────────────────────────────────
+router.get('/:id', verifyToken, async (req, res, next) => {
+  try {
+    const { data, error } = await supabase
+      .from('triage_assessments')
+      .select('*')
+      .eq('id', req.params.id)
+      .single()
+    if (error) throw error
+    if (!data) return res.status(404).json({ error: 'Not found' })
+    res.json(data)
   } catch (err) { next(err) }
 })
 
