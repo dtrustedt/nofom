@@ -523,7 +523,3 @@ body {
   line-height:   1.55;
 }
 
-/* Add at the bottom of frontend/src/index.css */
-
-/* Hide swipe viewport scrollbar on all browsers */
-.nf-swipe-vp::-webkit-scrollbar { display: none; }
