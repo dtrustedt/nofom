@@ -7,19 +7,46 @@ const useAppStore = create((set, get) => ({
   user:          null,
   session:       null,
   authLoading:   true,
-  workerProfile: null,   // ← health_workers row for this user
+  workerProfile: null,
 
-  setSession: (session) => set({
+  setSession:       (session) => set({
     session,
     user:        session?.user ?? null,
     authLoading: false
   }),
-
   setWorkerProfile: (profile) => set({ workerProfile: profile }),
 
   signOut: async () => {
     await supabase.auth.signOut()
-    set({ user: null, session: null, workerProfile: null })
+    set({
+      user: null, session: null,
+      workerProfile: null, facilities: []
+    })
+  },
+
+  // ── Facilities ────────────────────────────────────────────
+  facilities:        [],
+  facilitiesLoading: false,
+
+  setFacilities: (facilities) => set({ facilities }),
+
+  // Fetch all facilities from Supabase — called once after login
+  loadFacilities: async () => {
+    set({ facilitiesLoading: true })
+    const { data, error } = await supabase
+      .from('facilities')
+      .select('id, name, type, location, phone, can_accept_referrals')
+      .order('type', { ascending: true })   // primary → secondary → tertiary
+      .order('name', { ascending: true })
+
+    if (error) {
+      console.warn('[Facilities] Failed to load:', error.message)
+      set({ facilitiesLoading: false })
+      return
+    }
+
+    console.log(`[Facilities] Loaded ${data.length} facilities`)
+    set({ facilities: data, facilitiesLoading: false })
   },
 
   // ── Connectivity ─────────────────────────────────────────

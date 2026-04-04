@@ -3,10 +3,11 @@ import { create } from 'zustand'
 import { supabase } from '../lib/supabaseClient'
 
 const useAppStore = create((set, get) => ({
-  // ── Auth state ───────────────────────────────────────────
-  user:         null,
-  session:      null,
-  authLoading:  true,
+  // ── Auth ─────────────────────────────────────────────────
+  user:          null,
+  session:       null,
+  authLoading:   true,
+  workerProfile: null,   // ← health_workers row for this user
 
   setSession: (session) => set({
     session,
@@ -14,21 +15,23 @@ const useAppStore = create((set, get) => ({
     authLoading: false
   }),
 
+  setWorkerProfile: (profile) => set({ workerProfile: profile }),
+
   signOut: async () => {
     await supabase.auth.signOut()
-    set({ user: null, session: null })
+    set({ user: null, session: null, workerProfile: null })
   },
 
   // ── Connectivity ─────────────────────────────────────────
-  isOnline: navigator.onLine,
-  setOnline: (val) => set({ isOnline: val }),
+  isOnline:           navigator.onLine,
+  setOnline:          (val) => set({ isOnline: val }),
 
-  // ── Pending sync count (shown in UI) ─────────────────────
-  pendingSyncCount: 0,
+  // ── Sync count ───────────────────────────────────────────
+  pendingSyncCount:    0,
   setPendingSyncCount: (n) => set({ pendingSyncCount: n }),
 
-  // ── Last triage result (passed between pages) ─────────────
-  lastTriageResult: null,
+  // ── Last triage result ───────────────────────────────────
+  lastTriageResult:    null,
   setLastTriageResult: (result) => set({ lastTriageResult: result })
 }))
 
