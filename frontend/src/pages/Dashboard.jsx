@@ -1,113 +1,126 @@
-// frontend/src/pages/Dashboard.jsx
 import { useState, useEffect } from 'react'
 import { useNavigate }          from 'react-router-dom'
 import Header                   from '../components/layout/Header'
 import { getAllTriageLocally }   from '../db/localDb'
 import { PlusCircle, Clock, ChevronRight, ClipboardList } from 'lucide-react'
 
-// Risk level colour map
-const RISK_STYLES = {
-  HIGH:   'bg-red-100   text-red-700   border-red-200',
-  MEDIUM: 'bg-amber-100 text-amber-700 border-amber-200',
-  LOW:    'bg-green-100 text-green-700 border-green-200',
+const RISK_PILL = {
+  HIGH:   { bg:'var(--color-high)',   color:'white' },
+  MEDIUM: { bg:'var(--color-medium)', color:'white' },
+  LOW:    { bg:'var(--color-low)',    color:'white' }
 }
 
 function RiskPill({ level }) {
+  const s = RISK_PILL[level] || { bg:'var(--color-border)', color:'var(--color-text-secondary)' }
   return (
-    <span className={`text-xs font-bold px-2 py-0.5 rounded-full border
-                      ${RISK_STYLES[level] || 'bg-slate-100 text-slate-500'}`}>
+    <span style={{
+      background: s.bg, color: s.color,
+      fontSize: '0.6875rem', fontWeight: 700,
+      padding: '3px 9px', borderRadius: '999px',
+      letterSpacing: '0.05em', textTransform: 'uppercase'
+    }}>
       {level}
     </span>
   )
 }
 
 export default function Dashboard() {
-  const navigate               = useNavigate()
-  const [records, setRecords]  = useState([])
-  const [loading, setLoading]  = useState(true)
+  const navigate              = useNavigate()
+  const [records, setRecords] = useState([])
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    getAllTriageLocally()
-      .then(setRecords)
-      .finally(() => setLoading(false))
+    getAllTriageLocally().then(setRecords).finally(() => setLoading(false))
   }, [])
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col">
+    <div className="nf-page">
       <Header />
 
-      <main className="flex-1 max-w-lg mx-auto w-full p-4">
-
-        {/* New Triage button — the primary action */}
+      <main className="nf-main">
+        {/* New triage — primary CTA */}
         <button
           onClick={() => navigate('/triage/new')}
-          className="w-full bg-primary text-white rounded-2xl py-4 px-5
-                     flex items-center justify-between shadow-sm
-                     hover:bg-blue-700 transition-colors mb-6 mt-2"
+          style={{
+            width:'100%',
+            background:'var(--color-primary)',
+            color:'white',
+            border:'none',
+            borderRadius:'var(--radius-xl)',
+            padding:'20px',
+            display:'flex', alignItems:'center', justifyContent:'space-between',
+            cursor:'pointer', fontFamily:'var(--font-sans)',
+            marginBottom:'24px', marginTop:'8px',
+            boxShadow:'0 4px 16px rgba(10,61,107,0.25)',
+            transition:'transform 100ms'
+          }}
+          onMouseDown={e => e.currentTarget.style.transform='scale(0.99)'}
+          onMouseUp={e => e.currentTarget.style.transform='scale(1)'}
         >
-          <div className="text-left">
-            <p className="font-bold text-base">New Triage Assessment</p>
-            <p className="text-blue-100 text-sm">Start a new patient evaluation</p>
+          <div style={{ textAlign:'left' }}>
+            <p style={{ margin:0, fontWeight:700, fontSize:'1rem' }}>
+              New Triage Assessment
+            </p>
+            <p style={{ margin:'3px 0 0', fontSize:'0.875rem', color:'rgba(255,255,255,0.7)' }}>
+              Start a new patient evaluation
+            </p>
           </div>
-          <PlusCircle size={28} className="flex-shrink-0" />
+          <PlusCircle size={26} style={{ flexShrink:0 }} />
         </button>
 
-        {/* Recent records */}
-        <div className="flex items-center gap-2 mb-3">
-          <ClipboardList size={16} className="text-slate-400" />
-          <h2 className="text-sm font-semibold text-slate-600 uppercase tracking-wide">
-            Recent Assessments
-          </h2>
-        </div>
+        {/* Section heading */}
+        <p className="nf-section-title" style={{ display:'flex', alignItems:'center', gap:6 }}>
+          <ClipboardList size={13} />
+          Recent Assessments
+        </p>
 
         {loading && (
-          <p className="text-slate-400 text-sm text-center py-8">Loading…</p>
+          <p style={{ color:'var(--color-text-muted)', fontSize:'0.875rem', textAlign:'center', padding:'32px 0' }}>
+            Loading…
+          </p>
         )}
 
         {!loading && records.length === 0 && (
-          <div className="bg-white rounded-2xl border border-slate-200
-                          p-8 text-center">
-            <ClipboardList size={32} className="text-slate-300 mx-auto mb-2" />
-            <p className="text-slate-500 text-sm">No assessments yet.</p>
-            <p className="text-slate-400 text-xs mt-1">
-              Tap "New Triage Assessment" to begin.
+          <div className="nf-card nf-empty">
+            <ClipboardList size={36} />
+            <p style={{ fontWeight:600, margin:'0 0 4px', color:'var(--color-text-secondary)' }}>
+              No assessments yet
+            </p>
+            <p style={{ fontSize:'0.875rem' }}>
+              Tap "New Triage Assessment" to begin
             </p>
           </div>
         )}
 
         {!loading && records.length > 0 && (
-          <div className="space-y-2">
-            {records.map(record => (
-              <div
-                key={record.local_id}
-                className="bg-white rounded-xl border border-slate-200
-                           p-4 flex items-center justify-between
-                           hover:border-primary/40 transition-colors cursor-pointer"
-              >
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <RiskPill level={record.risk_level} />
-                    {!record.synced_at && (
-                      <span className="text-xs text-amber-600 font-medium">
-                        ● Not synced
+          <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+            {records.map(r => (
+              <div key={r.local_id} className="nf-record-item">
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:5 }}>
+                    <RiskPill level={r.risk_level} />
+                    {!r.synced_at && (
+                      <span style={{ fontSize:'0.75rem', color:'var(--color-medium)', fontWeight:600 }}>
+                        <span className="nf-sync-dot" />
+                        Pending sync
                       </span>
                     )}
                   </div>
-                  <p className="text-sm text-slate-700 font-medium">
-                    Age: {Math.floor(record.age_months / 12)}y {record.age_months % 12}m
-                    {' '}· Score: {record.risk_score}
+                  <p style={{ margin:0, fontSize:'0.9375rem', fontWeight:500, color:'var(--color-text-primary)' }}>
+                    Age {Math.floor(r.age_months/12)}y {r.age_months%12}m
+                    <span style={{ color:'var(--color-text-muted)', fontWeight:400 }}>
+                      {' '}· Score {r.risk_score}
+                    </span>
                   </p>
-                  <div className="flex items-center gap-1 mt-0.5">
-                    <Clock size={11} className="text-slate-400" />
-                    <p className="text-xs text-slate-400">
-                      {new Date(record.submitted_at).toLocaleDateString('en-GB', {
-                        day: '2-digit', month: 'short', year: 'numeric',
-                        hour: '2-digit', minute: '2-digit'
-                      })}
-                    </p>
-                  </div>
+                  <p style={{ margin:'3px 0 0', fontSize:'0.8125rem', color:'var(--color-text-muted)', display:'flex', alignItems:'center', gap:4 }}>
+                    <Clock size={11} />
+                    {new Date(r.submitted_at).toLocaleString('en-GB', {
+                      day:'2-digit', month:'short', year:'numeric',
+                      hour:'2-digit', minute:'2-digit'
+                    })}
+                  </p>
                 </div>
-                <ChevronRight size={16} className="text-slate-300 flex-shrink-0" />
+                <ChevronRight size={16} style={{ color:'var(--color-border-strong)', flexShrink:0 }} />
               </div>
             ))}
           </div>

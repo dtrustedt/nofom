@@ -1,280 +1,169 @@
-// frontend/src/pages/TriageResult.jsx
-import { useEffect }         from 'react'
-import { useNavigate }       from 'react-router-dom'
-import Header                from '../components/layout/Header'
-import useAppStore           from '../store/useAppStore'
-import {
-  AlertOctagon, AlertTriangle, CheckCircle,
-  Clock, Building2, ChevronRight,
-  PlusCircle, Info
-} from 'lucide-react'
+import { useEffect }     from 'react'
+import { useNavigate }   from 'react-router-dom'
+import Header            from '../components/layout/Header'
+import useAppStore       from '../store/useAppStore'
+import { AlertOctagon, AlertTriangle, CheckCircle, Building2, PlusCircle, ChevronRight } from 'lucide-react'
 
-// =============================================================
-// RISK BADGE — the most important element on this screen
-// =============================================================
-const RISK_CONFIG = {
-  HIGH: {
-    icon:      AlertOctagon,
-    bg:        'bg-red-500',
-    text:      'text-white',
-    border:    'border-red-600',
-    label:     'HIGH RISK',
-    sublabel:  'Urgent referral required',
-    ringColor: 'ring-red-300'
-  },
-  MEDIUM: {
-    icon:      AlertTriangle,
-    bg:        'bg-amber-400',
-    text:      'text-amber-900',
-    border:    'border-amber-500',
-    label:     'MEDIUM RISK',
-    sublabel:  'Referral recommended',
-    ringColor: 'ring-amber-200'
-  },
-  LOW: {
-    icon:      CheckCircle,
-    bg:        'bg-green-500',
-    text:      'text-white',
-    border:    'border-green-600',
-    label:     'LOW RISK',
-    sublabel:  'Monitor and educate',
-    ringColor: 'ring-green-200'
-  }
+const RISK_META = {
+  HIGH:   { icon:AlertOctagon,  cls:'nf-risk-high',   label:'HIGH RISK',   sub:'Urgent referral required' },
+  MEDIUM: { icon:AlertTriangle, cls:'nf-risk-medium',  label:'MEDIUM RISK', sub:'Referral recommended' },
+  LOW:    { icon:CheckCircle,   cls:'nf-risk-low',     label:'LOW RISK',    sub:'Monitor and educate' }
 }
 
 function RiskBadge({ level, score, maxScore }) {
-  const config = RISK_CONFIG[level] || RISK_CONFIG.LOW
-  const Icon   = config.icon
-  const pct    = Math.min(100, Math.round((score / maxScore) * 100))
+  const meta = RISK_META[level] || RISK_META.LOW
+  const Icon = meta.icon
+  const pct  = Math.min(100, Math.round((score / (maxScore||200)) * 100))
 
   return (
-    <div className={`rounded-2xl p-5 ${config.bg} ${config.text}
-                     ring-4 ${config.ringColor} shadow-lg`}>
-      <div className="flex items-center gap-3 mb-3">
-        <Icon size={32} />
+    <div className={`nf-risk-badge ${meta.cls}`}>
+      <div style={{ display:'flex', alignItems:'center', gap:14, marginBottom:14 }}>
+        <Icon size={36} />
         <div>
-          <p className="text-2xl font-black tracking-tight">{config.label}</p>
-          <p className={`text-sm font-medium opacity-80`}>{config.sublabel}</p>
+          <p style={{ margin:0, fontSize:'1.5rem', fontWeight:800, letterSpacing:'-0.02em', lineHeight:1 }}>
+            {meta.label}
+          </p>
+          <p style={{ margin:'4px 0 0', fontSize:'0.9375rem', opacity:0.85 }}>
+            {meta.sub}
+          </p>
         </div>
       </div>
-
-      {/* Score bar */}
-      <div className="mt-2">
-        <div className="flex justify-between text-xs opacity-70 mb-1">
-          <span>Risk Score</span>
-          <span>{score} / {maxScore}</span>
-        </div>
-        <div className="h-2 bg-black/20 rounded-full overflow-hidden">
-          <div
-            className="h-full bg-white/70 rounded-full transition-all duration-700"
-            style={{ width: `${pct}%` }}
-          />
-        </div>
+      <div style={{ fontSize:'0.8125rem', opacity:0.75, display:'flex', justifyContent:'space-between', marginBottom:4 }}>
+        <span>Risk Score</span>
+        <span style={{ fontFamily:'var(--font-mono)', fontWeight:600 }}>{score} / {maxScore}</span>
+      </div>
+      <div className="nf-score-track">
+        <div className="nf-score-fill" style={{ width:`${pct}%` }} />
       </div>
     </div>
   )
 }
 
-// =============================================================
-// REFERRAL CARD
-// =============================================================
 function ReferralCard({ referral }) {
   if (!referral) return null
-
-  const borderColor = {
-    danger:  'border-red-300  bg-red-50',
-    warning: 'border-amber-300 bg-amber-50',
-    success: 'border-green-300 bg-green-50'
-  }[referral.color] || 'border-slate-200 bg-white'
-
-  const titleColor = {
-    danger:  'text-red-800',
-    warning: 'text-amber-800',
-    success: 'text-green-800'
-  }[referral.color] || 'text-slate-800'
+  const borderLeft = {
+    danger:  'var(--color-high)',
+    warning: 'var(--color-medium)',
+    success: 'var(--color-low)'
+  }[referral.color] || 'var(--color-accent)'
 
   return (
-    <div className={`rounded-2xl border-2 p-4 ${borderColor}`}>
-      <div className="flex items-start gap-2 mb-3">
-        <Building2 size={18} className={`${titleColor} flex-shrink-0 mt-0.5`} />
+    <div className="nf-card" style={{ borderLeft:`4px solid ${borderLeft}` }}>
+      <div style={{ display:'flex', alignItems:'flex-start', gap:10, marginBottom:14 }}>
+        <Building2 size={18} style={{ color:borderLeft, flexShrink:0, marginTop:2 }} />
         <div>
-          <p className={`font-bold text-base ${titleColor}`}>{referral.label}</p>
-          <div className="flex items-center gap-1 mt-0.5">
-            <Clock size={12} className="text-slate-400" />
-            <p className="text-sm text-slate-600">{referral.timeframe}</p>
-          </div>
-          <p className="text-xs text-slate-400 mt-0.5">
-            Facility level: {referral.facility_tier}
+          <p style={{ margin:0, fontWeight:700, fontSize:'1rem', color:'var(--color-text-primary)' }}>
+            {referral.label}
+          </p>
+          <p style={{ margin:'3px 0 2px', fontSize:'0.9375rem', color:'var(--color-text-secondary)' }}>
+            ⏱ {referral.timeframe}
+          </p>
+          <p style={{ margin:0, fontSize:'0.8125rem', color:'var(--color-text-muted)' }}>
+            Facility level: <strong>{referral.facility_tier}</strong>
           </p>
         </div>
       </div>
 
-      {/* Special clinical warnings — shown first if present */}
+      {/* Special clinical warnings */}
       {referral.special_notes?.length > 0 && (
-        <div className="bg-white/70 rounded-xl border border-red-200 p-3 mb-3">
-          {referral.special_notes.map((note, i) => (
-            <p key={i} className="text-sm text-red-800 font-medium leading-snug
-                                  mb-1 last:mb-0">
-              {note}
-            </p>
+        <div className="nf-alert nf-alert-danger" style={{ marginBottom:14, flexDirection:'column', gap:6 }}>
+          {referral.special_notes.map((n,i) => (
+            <p key={i} style={{ margin:0, fontWeight:600 }}>{n}</p>
           ))}
         </div>
       )}
 
-      {/* Step-by-step instructions */}
-      <div>
-        <p className="text-xs font-semibold text-slate-500 uppercase
-                      tracking-wide mb-2">
-          Steps to take:
-        </p>
-        <ol className="space-y-2">
-          {referral.instructions.map((step, i) => (
-            <li key={i} className="flex gap-2 text-sm text-slate-700">
-              <span className="font-bold text-slate-400 flex-shrink-0 w-4">
-                {i + 1}.
-              </span>
-              {step}
-            </li>
-          ))}
-        </ol>
+      <hr className="nf-divider" style={{ margin:'0 0 12px' }} />
+
+      <p className="nf-section-title">Steps to take:</p>
+      <div style={{ display:'flex', flexDirection:'column', gap:4 }}>
+        {referral.instructions.map((step,i) => (
+          <div key={i} className="nf-step">
+            <span className="nf-step-num">{i+1}</span>
+            <span style={{ lineHeight:1.5 }}>{step}</span>
+          </div>
+        ))}
       </div>
     </div>
   )
 }
 
-// =============================================================
-// EXPLANATION ACCORDION
-// =============================================================
 function ExplanationSection({ explanation, overrideApplied }) {
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 p-4">
-      <div className="flex items-center gap-2 mb-3">
-        <Info size={16} className="text-primary" />
-        <h3 className="font-semibold text-slate-800 text-sm">
-          Why this result?
-        </h3>
-      </div>
-
+    <div className="nf-card">
+      <p className="nf-section-title" style={{ display:'flex', alignItems:'center', gap:6 }}>
+        <ChevronRight size={13} /> Why this result?
+      </p>
       {overrideApplied && (
-        <div className="bg-amber-50 border border-amber-200 rounded-lg
-                        p-2.5 mb-3">
-          <p className="text-xs text-amber-800 font-medium">
-            ⚠️ Safety override applied: 2+ primary indicators present
-          </p>
+        <div className="nf-alert nf-alert-warning" style={{ marginBottom:12 }}>
+          ⚠️ Safety override: 2+ primary indicators present — risk forced to HIGH
         </div>
       )}
-
-      <ul className="space-y-2.5">
-        {explanation.map((line, i) => (
-          <li key={i} className="flex gap-2 text-sm text-slate-600 leading-snug">
-            <ChevronRight size={14} className="text-slate-300 flex-shrink-0 mt-0.5" />
-            {line}
-          </li>
+      <div>
+        {explanation.map((line,i) => (
+          <div key={i} className="nf-explanation-item">
+            <ChevronRight size={14} style={{ color:'var(--color-border-strong)', flexShrink:0, marginTop:3 }} />
+            <span>{line}</span>
+          </div>
         ))}
-      </ul>
+      </div>
     </div>
   )
 }
 
-// =============================================================
-// MAIN PAGE
-// =============================================================
 export default function TriageResult() {
-  const navigate          = useNavigate()
-  const lastTriageResult  = useAppStore(s => s.lastTriageResult)
+  const navigate         = useNavigate()
+  const lastTriageResult = useAppStore(s => s.lastTriageResult)
 
-  // If someone navigates here directly with no result, send back
-  useEffect(() => {
-    if (!lastTriageResult) navigate('/')
-  }, [lastTriageResult])
-
+  useEffect(() => { if (!lastTriageResult) navigate('/') }, [lastTriageResult])
   if (!lastTriageResult) return null
 
-  const {
-    risk_level,
-    risk_score,
-    max_possible_score,
-    explanation,
-    referral,
-    override_applied,
-    age_modifier,
-    duration_label
-  } = lastTriageResult
+  const { risk_level, risk_score, max_possible_score, explanation, referral, override_applied, age_modifier, duration_label } = lastTriageResult
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col">
+    <div className="nf-page">
       <Header />
-
-      <main className="flex-1 max-w-lg mx-auto w-full p-4 pb-24 space-y-4">
-        <div className="flex items-center justify-between mt-1">
-          <h1 className="text-xl font-bold text-slate-800">
+      <main className="nf-main">
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', margin:'4px 0 16px' }}>
+          <h1 style={{ margin:0, fontSize:'1.25rem', fontWeight:700, color:'var(--color-text-primary)', letterSpacing:'-0.01em' }}>
             Triage Result
           </h1>
-          <span className="text-xs text-slate-400">
-            {new Date().toLocaleDateString('en-GB', {
-              day: '2-digit', month: 'short', year: 'numeric'
-            })}
+          <span style={{ fontSize:'0.8125rem', color:'var(--color-text-muted)' }}>
+            {new Date().toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' })}
           </span>
         </div>
 
-        {/* Risk Badge — first thing worker sees */}
-        <RiskBadge
-          level={risk_level}
-          score={risk_score}
-          maxScore={max_possible_score || 200}
-        />
+        <RiskBadge level={risk_level} score={risk_score} maxScore={max_possible_score||200} />
 
         {/* Context chips */}
-        <div className="flex gap-2 flex-wrap">
-          <span className="bg-white border border-slate-200 rounded-full
-                           px-3 py-1 text-xs text-slate-600">
-            📅 {duration_label}
-          </span>
-          <span className="bg-white border border-slate-200 rounded-full
-                           px-3 py-1 text-xs text-slate-600">
-            👶 {age_modifier?.label}
-          </span>
+        <div style={{ display:'flex', gap:8, flexWrap:'wrap', margin:'12px 0' }}>
+          <span className="nf-chip">📅 {duration_label}</span>
+          <span className="nf-chip">👶 {age_modifier?.label}</span>
         </div>
 
-        {/* Referral Card — what to DO */}
         <ReferralCard referral={referral} />
+        <ExplanationSection explanation={explanation} overrideApplied={override_applied} />
 
-        {/* Explanation — why the score is what it is */}
-        <ExplanationSection
-          explanation={explanation}
-          overrideApplied={override_applied}
-        />
-
-        {/* Disclaimer */}
-        <div className="bg-slate-100 rounded-xl p-3">
-          <p className="text-xs text-slate-500 leading-relaxed">
-            <strong>Clinical note:</strong> This triage tool assists decision-making
-            and does not replace clinical judgement. All referral decisions should
-            be confirmed by a qualified health professional.
-          </p>
+        <div className="nf-disclaimer">
+          <strong>Clinical note:</strong> This tool assists decision-making and does not replace clinical judgement. All referral decisions should be confirmed by a qualified health professional.
         </div>
       </main>
 
-      {/* Sticky bottom actions */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t
-                      border-slate-200 p-4 shadow-lg">
-        <div className="max-w-lg mx-auto flex gap-3">
+      <div className="nf-sticky-bar">
+        <div className="nf-sticky-bar-inner" style={{ display:'flex', gap:10 }}>
           <button
             onClick={() => navigate('/')}
-            className="flex-1 border border-slate-300 text-slate-700
-                       font-semibold rounded-xl py-3 text-sm
-                       hover:bg-slate-50 transition-colors"
+            className="nf-btn nf-btn-secondary"
+            style={{ flex:1 }}
           >
-            Back to Dashboard
+            Dashboard
           </button>
           <button
             onClick={() => navigate('/triage/new')}
-            className="flex-1 bg-primary text-white font-semibold
-                       rounded-xl py-3 text-sm hover:bg-blue-700
-                       transition-colors flex items-center justify-center gap-2"
+            className="nf-btn nf-btn-primary"
+            style={{ flex:1 }}
           >
-            <PlusCircle size={16} />
-            New Assessment
+            <PlusCircle size={16} /> New Assessment
           </button>
         </div>
       </div>

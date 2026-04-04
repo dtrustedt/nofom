@@ -1,596 +1,524 @@
-/* =============================================================
-   NOFOM — Global Design System
-   Clinical Warmth: Medical precision meets human compassion
-   ============================================================= */
-
-@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,300;0,400;0,600;1,300&family=DM+Sans:wght@300;400;500;600&display=swap');
+/* frontend/src/index.css
+   ============================================================
+   NOFOM DESIGN SYSTEM — Single source of truth
+   All colors, spacing, typography, and component base styles
+   live here. Tailwind utilities reference these CSS variables.
+   ============================================================ */
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* ── CSS Variables ──────────────────────────────────────────── */
+/* ── 1. DESIGN TOKENS ─────────────────────────────────────── */
 :root {
-  --bg:          #f5f4f0;
-  --bg-card:     #ffffff;
-  --bg-subtle:   #f0efeb;
-  --border:      #e2e0da;
-  --border-focus:#0d9488;
+  /* Brand */
+  --color-primary:       #0a3d6b;
+  --color-primary-dark:  #072d50;
+  --color-primary-light: #e8f0f9;
+  --color-accent:        #0073e6;
 
-  --text-primary:   #1a1a2e;
-  --text-secondary: #5c5c6e;
-  --text-muted:     #9898a8;
+  /* Risk levels — high contrast for bright outdoor use */
+  --color-high:          #c8102e;
+  --color-high-bg:       #fff0f1;
+  --color-high-border:   #f4b8bf;
+  --color-high-text:     #8b0000;
 
-  --teal:        #0d9488;
-  --teal-dark:   #0a7c72;
-  --teal-light:  #ccfbf1;
-  --teal-subtle: #f0fdfa;
+  --color-medium:        #c45c00;
+  --color-medium-bg:     #fff7ed;
+  --color-medium-border: #f5c59a;
+  --color-medium-text:   #7c3a00;
 
-  --amber:       #d97706;
-  --amber-light: #fef3c7;
-  --red:         #dc2626;
-  --red-light:   #fee2e2;
-  --green:       #16a34a;
-  --green-light: #dcfce7;
+  --color-low:           #1a6b3a;
+  --color-low-bg:        #f0faf4;
+  --color-low-border:    #a3d9b8;
+  --color-low-text:      #0d4422;
 
-  --shadow-sm:   0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
-  --shadow-md:   0 4px 16px rgba(0,0,0,0.07), 0 2px 6px rgba(0,0,0,0.05);
-  --shadow-lg:   0 12px 40px rgba(0,0,0,0.10), 0 4px 12px rgba(0,0,0,0.06);
+  /* Neutrals */
+  --color-surface:       #ffffff;
+  --color-surface-alt:   #f4f7fb;
+  --color-border:        #d9e2ed;
+  --color-border-strong: #b0bfce;
+  --color-text-primary:  #0d1b2a;
+  --color-text-secondary:#4a6178;
+  --color-text-muted:    #7a90a4;
 
-  --radius-sm:   6px;
-  --radius-md:   12px;
-  --radius-lg:   20px;
+  /* Typography */
+  --font-sans:  'IBM Plex Sans', system-ui, sans-serif;
+  --font-mono:  'IBM Plex Mono', monospace;
+
+  /* Spacing scale */
+  --space-xs:   4px;
+  --space-sm:   8px;
+  --space-md:   16px;
+  --space-lg:   24px;
+  --space-xl:   32px;
+
+  /* Radius */
+  --radius-sm:  6px;
+  --radius-md:  10px;
+  --radius-lg:  14px;
+  --radius-xl:  20px;
+
+  /* Shadows — subtle, for depth not decoration */
+  --shadow-card:   0 1px 3px rgba(10,61,107,0.06), 0 1px 2px rgba(10,61,107,0.04);
+  --shadow-sticky: 0 -2px 12px rgba(10,61,107,0.08);
+  --shadow-header: 0 1px 0px var(--color-border);
 }
 
-/* ── Base Reset ─────────────────────────────────────────────── */
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+/* ── 2. BASE RESET ────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
 
-html { font-size: 16px; -webkit-font-smoothing: antialiased; }
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
 
 body {
-  font-family: 'DM Sans', sans-serif;
-  background-color: var(--bg);
-  color: var(--text-primary);
-  min-height: 100vh;
-  line-height: 1.6;
+  font-family:      var(--font-sans);
+  background-color: var(--color-surface-alt);
+  color:            var(--color-text-primary);
+  line-height:      1.5;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100dvh;
 }
 
-/* ── Typography ─────────────────────────────────────────────── */
-h1, h2, h3, h4 {
-  font-family: 'Fraunces', Georgia, serif;
-  line-height: 1.2;
-  color: var(--text-primary);
-}
+/* ── 3. COMPONENT CLASSES ─────────────────────────────────── */
 
-h1 { font-size: clamp(1.75rem, 4vw, 2.25rem); font-weight: 600; }
-h2 { font-size: clamp(1.25rem, 3vw, 1.5rem);  font-weight: 600; }
-h3 { font-size: 1.125rem; font-weight: 400; font-style: italic; }
-
-p  { color: var(--text-secondary); }
-
-/* ── Layout Utilities ───────────────────────────────────────── */
-.page-container {
-  min-height: 100vh;
-  padding: 1.5rem 1rem;
-  display: flex;
-  flex-direction: column;
-}
-
-.page-center {
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 2rem 1rem;
-  background: var(--bg);
-}
-
-.card {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
+/* -- Cards -- */
+.nf-card {
+  background:    var(--color-surface);
+  border:        1px solid var(--color-border);
   border-radius: var(--radius-lg);
-  padding: 2rem;
-  box-shadow: var(--shadow-md);
+  padding:       var(--space-md);
+  box-shadow:    var(--shadow-card);
 }
 
-.card-sm {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  padding: 1.25rem 1.5rem;
-  box-shadow: var(--shadow-sm);
-}
-
-/* ── Brand / Logo ───────────────────────────────────────────── */
-.brand {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 0.25rem;
-}
-
-.brand-name {
-  font-family: 'Fraunces', serif;
-  font-size: 2rem;
-  font-weight: 600;
-  color: var(--text-primary);
-  letter-spacing: -0.02em;
-}
-
-.brand-icon {
-  color: var(--teal);
-  flex-shrink: 0;
-}
-
-.brand-tagline {
-  font-size: 0.875rem;
-  color: var(--text-muted);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  font-weight: 500;
-}
-
-/* ── Form Elements ──────────────────────────────────────────── */
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.375rem;
-  margin-bottom: 1.25rem;
-}
-
-.form-label {
-  font-size: 0.8125rem;
-  font-weight: 600;
-  color: var(--text-secondary);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-.form-input {
-  width: 100%;
-  padding: 0.75rem 1rem;
-  font-family: 'DM Sans', sans-serif;
-  font-size: 1rem;
-  color: var(--text-primary);
-  background: var(--bg-subtle);
-  border: 1.5px solid var(--border);
-  border-radius: var(--radius-sm);
-  outline: none;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
-  -webkit-appearance: none;
-}
-
-.form-input:focus {
-  border-color: var(--border-focus);
-  background: #fff;
-  box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.12);
-}
-
-.form-input::placeholder { color: var(--text-muted); }
-
-.form-input-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.75rem;
-}
-
-.form-hint {
-  font-size: 0.8125rem;
-  color: var(--text-muted);
-  margin-top: 0.25rem;
-}
-
-/* ── Checkbox Symptom Cards ─────────────────────────────────── */
-.symptom-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.symptom-card {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.875rem;
-  padding: 1rem 1.125rem;
-  background: var(--bg-subtle);
-  border: 1.5px solid var(--border);
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  transition: all 0.15s ease;
-  user-select: none;
-}
-
-.symptom-card:hover {
-  border-color: var(--teal);
-  background: var(--teal-subtle);
-}
-
-.symptom-card.checked {
-  border-color: var(--teal);
-  background: var(--teal-subtle);
-  box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.1);
-}
-
-.symptom-card input[type="checkbox"] {
-  display: none;
-}
-
-.symptom-checkbox {
-  width: 1.25rem;
-  height: 1.25rem;
-  border: 2px solid var(--border);
-  border-radius: 4px;
-  flex-shrink: 0;
-  margin-top: 1px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.15s ease;
-  background: #fff;
-}
-
-.symptom-card.checked .symptom-checkbox {
-  background: var(--teal);
-  border-color: var(--teal);
-}
-
-.symptom-checkbox::after {
-  content: '';
-  width: 6px;
-  height: 10px;
-  border: 2px solid #fff;
-  border-top: none;
-  border-left: none;
-  transform: rotate(45deg) translateY(-1px);
-  opacity: 0;
-  transition: opacity 0.1s ease;
-}
-
-.symptom-card.checked .symptom-checkbox::after { opacity: 1; }
-
-.symptom-info { flex: 1; }
-
-.symptom-name {
-  font-size: 0.9375rem;
-  font-weight: 500;
-  color: var(--text-primary);
-  line-height: 1.3;
-}
-
-.symptom-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-  margin-top: 0.25rem;
-  padding: 0.125rem 0.5rem;
-  font-size: 0.6875rem;
-  font-weight: 600;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  border-radius: 999px;
-  color: var(--amber);
-  background: var(--amber-light);
-}
-
-/* ── Buttons ─────────────────────────────────────────────────── */
-.btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1.5rem;
-  font-family: 'DM Sans', sans-serif;
-  font-size: 0.9375rem;
-  font-weight: 600;
-  border: none;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  transition: all 0.15s ease;
-  text-decoration: none;
-  white-space: nowrap;
-  -webkit-appearance: none;
-}
-
-.btn-primary {
-  background: var(--teal);
-  color: #fff;
-  width: 100%;
-  padding: 0.875rem 1.5rem;
-  font-size: 1rem;
-  border-radius: var(--radius-sm);
-  box-shadow: 0 2px 8px rgba(13, 148, 136, 0.3);
-}
-
-.btn-primary:hover {
-  background: var(--teal-dark);
-  box-shadow: 0 4px 16px rgba(13, 148, 136, 0.35);
-  transform: translateY(-1px);
-}
-
-.btn-primary:active { transform: translateY(0); }
-
-.btn-primary:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-  transform: none;
-}
-
-.btn-ghost {
-  background: transparent;
-  color: var(--text-secondary);
-  padding: 0.5rem 0.75rem;
-  font-size: 0.875rem;
-}
-
-.btn-ghost:hover { color: var(--text-primary); background: var(--bg-subtle); }
-
-.btn-outline {
-  background: transparent;
-  color: var(--teal);
-  border: 1.5px solid var(--teal);
-}
-.btn-outline:hover { background: var(--teal-subtle); }
-
-/* ── Risk Level Badges ──────────────────────────────────────── */
-.risk-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.375rem;
-  padding: 0.375rem 0.875rem;
-  border-radius: 999px;
-  font-size: 0.8125rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-.risk-high   { background: var(--red-light);   color: var(--red);   }
-.risk-medium { background: var(--amber-light);  color: var(--amber); }
-.risk-low    { background: var(--green-light);  color: var(--green); }
-
-/* ── Score Bar ───────────────────────────────────────────────── */
-.score-bar-track {
-  height: 8px;
-  background: var(--bg-subtle);
-  border-radius: 999px;
-  overflow: hidden;
-  border: 1px solid var(--border);
-}
-
-.score-bar-fill {
-  height: 100%;
-  border-radius: 999px;
-  transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.score-bar-fill.high   { background: var(--red); }
-.score-bar-fill.medium { background: var(--amber); }
-.score-bar-fill.low    { background: var(--green); }
-
-/* ── Section Headers (form sections) ───────────────────────── */
-.section-header {
-  display: flex;
-  align-items: center;
-  gap: 0.625rem;
-  margin-bottom: 1rem;
-  padding-bottom: 0.75rem;
-  border-bottom: 1px solid var(--border);
-}
-
-.section-number {
-  width: 1.75rem;
-  height: 1.75rem;
-  background: var(--teal);
-  color: #fff;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.75rem;
-  font-weight: 700;
-  flex-shrink: 0;
-}
-
-.section-title {
-  font-family: 'Fraunces', serif;
-  font-size: 1.125rem;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-/* ── Live Score Preview (top bar) ───────────────────────────── */
-.score-preview-bar {
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  background: rgba(245, 244, 240, 0.9);
-  backdrop-filter: blur(8px);
-  border-bottom: 1px solid var(--border);
-  padding: 0.625rem 1rem;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-}
-
-.score-preview-label {
-  font-size: 0.8125rem;
-  color: var(--text-muted);
-  font-weight: 500;
-}
-
-/* ── Nav / Top Bar ───────────────────────────────────────────── */
-.top-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 1rem 0;
-  margin-bottom: 1.5rem;
-  border-bottom: 1px solid var(--border);
-}
-
-/* ── Offline Banner ─────────────────────────────────────────── */
-.offline-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.375rem;
-  padding: 0.375rem 0.875rem;
-  background: var(--amber-light);
-  color: var(--amber);
-  border-radius: 999px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-.online-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.375rem;
-  padding: 0.375rem 0.875rem;
-  background: var(--green-light);
-  color: var(--green);
-  border-radius: 999px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-/* ── Result Card ────────────────────────────────────────────── */
-.result-card {
+.nf-card-section {
+  background:    var(--color-surface);
+  border:        1px solid var(--color-border);
   border-radius: var(--radius-lg);
-  padding: 2rem;
-  text-align: center;
+  padding:       var(--space-md);
+  box-shadow:    var(--shadow-card);
+  /* Left accent stripe — makes sections visually scannable */
+  border-left:   3px solid var(--color-accent);
 }
 
-.result-card.high   { background: var(--red-light);   border: 2px solid var(--red);   }
-.result-card.medium { background: var(--amber-light);  border: 2px solid var(--amber); }
-.result-card.low    { background: var(--green-light);  border: 2px solid var(--green); }
-
-.result-score {
-  font-family: 'Fraunces', serif;
-  font-size: 4rem;
-  font-weight: 600;
-  line-height: 1;
-  margin: 0.5rem 0;
-}
-
-/* ── Explanation List ───────────────────────────────────────── */
-.explanation-item {
-  display: flex;
-  gap: 0.75rem;
-  padding: 0.875rem 0;
-  border-bottom: 1px solid var(--border);
-  font-size: 0.9rem;
-  color: var(--text-secondary);
-  line-height: 1.5;
-}
-
-.explanation-item:last-child { border-bottom: none; }
-
-.explanation-dot {
-  width: 6px;
-  height: 6px;
-  background: var(--teal);
-  border-radius: 50%;
-  flex-shrink: 0;
-  margin-top: 0.45rem;
-}
-
-/* ── Dashboard grid ─────────────────────────────────────────── */
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 0.75rem;
-  margin-bottom: 1.5rem;
-}
-
-.stat-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
+/* -- Form inputs -- */
+.nf-input {
+  display:       block;
+  width:         100%;
+  font-family:   var(--font-sans);
+  font-size:     0.9375rem;   /* 15px — large enough for gloves */
+  line-height:   1.5;
+  color:         var(--color-text-primary);
+  background:    var(--color-surface);
+  border:        1.5px solid var(--color-border-strong);
   border-radius: var(--radius-md);
-  padding: 1rem;
-  text-align: center;
+  padding:       10px 14px;
+  transition:    border-color 150ms, box-shadow 150ms;
+  -webkit-appearance: none;
+  appearance:    none;
 }
 
-.stat-value {
-  font-family: 'Fraunces', serif;
-  font-size: 2rem;
-  font-weight: 600;
-  line-height: 1;
+.nf-input:focus {
+  outline:       none;
+  border-color:  var(--color-accent);
+  box-shadow:    0 0 0 3px rgba(0,115,230,0.15);
 }
 
-.stat-label {
-  font-size: 0.75rem;
-  color: var(--text-muted);
+.nf-input::placeholder {
+  color: var(--color-text-muted);
+}
+
+.nf-label {
+  display:      block;
+  font-size:    0.8125rem;  /* 13px */
+  font-weight:  600;
+  color:        var(--color-text-secondary);
+  letter-spacing: 0.02em;
+  margin-bottom: 6px;
+}
+
+/* -- Buttons -- */
+.nf-btn {
+  display:         inline-flex;
+  align-items:     center;
+  justify-content: center;
+  gap:             8px;
+  font-family:     var(--font-sans);
+  font-size:       0.9375rem;
+  font-weight:     600;
+  line-height:     1;
+  border:          1.5px solid transparent;
+  border-radius:   var(--radius-md);
+  padding:         12px 20px;
+  cursor:          pointer;
+  transition:      background 150ms, transform 80ms, box-shadow 150ms;
+  -webkit-tap-highlight-color: transparent;
+  user-select:     none;
+}
+
+.nf-btn:active   { transform: scale(0.98); }
+.nf-btn:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
+
+.nf-btn-primary {
+  background:  var(--color-primary);
+  color:       #ffffff;
+  border-color: var(--color-primary);
+}
+.nf-btn-primary:hover:not(:disabled) {
+  background: var(--color-primary-dark);
+}
+
+.nf-btn-secondary {
+  background:   transparent;
+  color:        var(--color-primary);
+  border-color: var(--color-border-strong);
+}
+.nf-btn-secondary:hover:not(:disabled) {
+  background: var(--color-primary-light);
+}
+
+.nf-btn-danger {
+  background:  var(--color-high);
+  color:       #ffffff;
+  border-color: var(--color-high);
+}
+
+.nf-btn-full  { width: 100%; }
+.nf-btn-large { padding: 15px 20px; font-size: 1rem; border-radius: var(--radius-lg); }
+
+/* -- Checkbox row — used in symptom list -- */
+.nf-checkbox-row {
+  display:       flex;
+  align-items:   flex-start;
+  gap:           12px;
+  padding:       12px 14px;
+  background:    var(--color-surface);
+  border:        1.5px solid var(--color-border);
+  border-radius: var(--radius-md);
+  cursor:        pointer;
+  transition:    border-color 120ms, background 120ms;
+  user-select:   none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.nf-checkbox-row:active {
+  background: var(--color-primary-light);
+}
+
+.nf-checkbox-row.is-checked {
+  background:   var(--color-high-bg);
+  border-color: var(--color-high-border);
+  border-width: 1.5px;
+}
+
+.nf-checkbox-row.is-checked.is-primary {
+  border-color: var(--color-high);
+}
+
+.nf-checkbox-box {
+  flex-shrink:   0;
+  width:         22px;
+  height:        22px;
+  border:        2px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  display:       flex;
+  align-items:   center;
+  justify-content: center;
+  margin-top:    1px;
+  transition:    background 120ms, border-color 120ms;
+}
+
+.nf-checkbox-box.is-checked {
+  background:   var(--color-high);
+  border-color: var(--color-high);
+}
+
+/* -- Risk badges -- */
+.nf-risk-badge {
+  border-radius: var(--radius-xl);
+  padding:       20px;
+  position:      relative;
+  overflow:      hidden;
+}
+
+.nf-risk-badge::before {
+  content:  '';
+  position: absolute;
+  top:      -40%;
+  right:    -10%;
+  width:    160px;
+  height:   160px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.08);
+  pointer-events: none;
+}
+
+.nf-risk-high   {
+  background:   var(--color-high);
+  color:        #fff;
+  border:       2px solid var(--color-high);
+}
+.nf-risk-medium {
+  background:   var(--color-medium);
+  color:        #fff;
+  border:       2px solid var(--color-medium);
+}
+.nf-risk-low    {
+  background:   var(--color-low);
+  color:        #fff;
+  border:       2px solid var(--color-low);
+}
+
+/* -- Section heading -- */
+.nf-section-title {
+  font-size:      0.8125rem;
+  font-weight:    700;
+  color:          var(--color-text-secondary);
+  letter-spacing: 0.07em;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  margin-top: 0.25rem;
-  font-weight: 500;
+  margin-bottom:  10px;
 }
 
-/* ── Patient list item ──────────────────────────────────────── */
-.patient-row {
-  display: flex;
+/* -- Alert blocks -- */
+.nf-alert {
+  display:       flex;
+  gap:           10px;
+  padding:       12px 14px;
+  border-radius: var(--radius-md);
+  font-size:     0.875rem;
+  line-height:   1.45;
+  border:        1px solid;
+}
+
+.nf-alert-danger {
+  background:   var(--color-high-bg);
+  border-color: var(--color-high-border);
+  color:        var(--color-high-text);
+}
+
+.nf-alert-warning {
+  background:   var(--color-medium-bg);
+  border-color: var(--color-medium-border);
+  color:        var(--color-medium-text);
+}
+
+.nf-alert-info {
+  background:   var(--color-primary-light);
+  border-color: #b3cceb;
+  color:        var(--color-primary);
+}
+
+/* -- Score bar -- */
+.nf-score-track {
+  height:        8px;
+  background:    rgba(255,255,255,0.25);
+  border-radius: 999px;
+  overflow:      hidden;
+  margin-top:    8px;
+}
+
+.nf-score-fill {
+  height:       100%;
+  background:   rgba(255,255,255,0.85);
+  border-radius: 999px;
+  transition:   width 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* -- Pill chips -- */
+.nf-chip {
+  display:       inline-flex;
+  align-items:   center;
+  gap:           5px;
+  font-size:     0.8125rem;
+  font-weight:   500;
+  padding:       4px 10px;
+  border-radius: 999px;
+  border:        1px solid var(--color-border);
+  background:    var(--color-surface);
+  color:         var(--color-text-secondary);
+}
+
+/* -- Page layout shell -- */
+.nf-page {
+  min-height:     100dvh;
+  display:        flex;
+  flex-direction: column;
+  background:     var(--color-surface-alt);
+}
+
+.nf-main {
+  flex:       1;
+  max-width:  520px;
+  margin:     0 auto;
+  width:      100%;
+  padding:    16px 16px 100px; /* bottom padding for sticky footer */
+}
+
+/* -- Sticky footer bar -- */
+.nf-sticky-bar {
+  position:   fixed;
+  bottom:     0;
+  left:       0;
+  right:      0;
+  background: var(--color-surface);
+  border-top: 1px solid var(--color-border);
+  padding:    12px 16px calc(12px + env(safe-area-inset-bottom));
+  box-shadow: var(--shadow-sticky);
+  z-index:    50;
+}
+
+.nf-sticky-bar-inner {
+  max-width: 520px;
+  margin:    0 auto;
+}
+
+/* -- Header -- */
+.nf-header {
+  background:  var(--color-primary);
+  color:       #ffffff;
+  padding:     0 16px;
+  height:      56px;
+  display:     flex;
   align-items: center;
   justify-content: space-between;
-  padding: 1rem 1.25rem;
-  background: var(--bg-card);
-  border: 1px solid var(--border);
+  box-shadow:  var(--shadow-header);
+  position:    sticky;
+  top:         0;
+  z-index:     40;
+}
+
+/* -- Offline / sync banner -- */
+.nf-banner {
+  width:       100%;
+  padding:     8px 16px;
+  font-size:   0.8125rem;
+  font-weight: 500;
+  display:     flex;
+  align-items: center;
+  gap:         8px;
+}
+
+.nf-banner-offline {
+  background: var(--color-primary);
+  color:      rgba(255,255,255,0.92);
+}
+
+.nf-banner-syncing {
+  background: #fffbeb;
+  color:      var(--color-medium-text);
+  border-bottom: 1px solid var(--color-medium-border);
+}
+
+/* -- Divider -- */
+.nf-divider {
+  border:     none;
+  border-top: 1px solid var(--color-border);
+  margin:     var(--space-md) 0;
+}
+
+/* -- Empty state -- */
+.nf-empty {
+  text-align:  center;
+  padding:     48px 24px;
+  color:       var(--color-text-muted);
+}
+
+.nf-empty svg {
+  margin: 0 auto 12px;
+  opacity: 0.3;
+}
+
+/* -- Record list item -- */
+.nf-record-item {
+  background:    var(--color-surface);
+  border:        1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding:       14px 16px;
+  display:       flex;
+  align-items:   center;
+  justify-content: space-between;
+  gap:           12px;
+  transition:    border-color 150ms, box-shadow 150ms;
+  cursor:        pointer;
+}
+
+.nf-record-item:hover {
+  border-color: var(--color-accent);
+  box-shadow:   0 0 0 3px var(--color-primary-light);
+}
+
+/* -- Sync dot -- */
+.nf-sync-dot {
+  display:     inline-block;
+  width:       7px;
+  height:      7px;
+  border-radius: 50%;
+  background:  var(--color-medium);
+  margin-right: 4px;
+  vertical-align: middle;
+}
+
+/* -- Explanation list -- */
+.nf-explanation-item {
+  display:     flex;
+  gap:         10px;
+  font-size:   0.875rem;
+  line-height: 1.55;
+  color:       var(--color-text-secondary);
+  padding:     8px 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.nf-explanation-item:last-child {
+  border-bottom: none;
+}
+
+/* -- Referral step -- */
+.nf-step {
+  display:  flex;
+  gap:      10px;
+  font-size: 0.875rem;
+  color:    var(--color-text-secondary);
+  padding:  6px 0;
+}
+
+.nf-step-num {
+  flex-shrink: 0;
+  width:       22px;
+  height:      22px;
+  border-radius: 50%;
+  background:  var(--color-primary-light);
+  color:       var(--color-primary);
+  font-size:   0.75rem;
+  font-weight: 700;
+  display:     flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* -- Loading spinner -- */
+.nf-spinner {
+  width:  20px;
+  height: 20px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: nf-spin 0.7s linear infinite;
+}
+
+@keyframes nf-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* -- Disclaimer box -- */
+.nf-disclaimer {
+  background:    #f1f5f9;
+  border:        1px solid var(--color-border);
   border-radius: var(--radius-md);
-  margin-bottom: 0.5rem;
-  cursor: pointer;
-  transition: all 0.12s ease;
-  text-decoration: none;
-  color: inherit;
+  padding:       12px 14px;
+  font-size:     0.8125rem;
+  color:         var(--color-text-muted);
+  line-height:   1.55;
 }
-
-.patient-row:hover {
-  border-color: var(--teal);
-  box-shadow: var(--shadow-sm);
-  transform: translateX(2px);
-}
-
-/* ── Divider ─────────────────────────────────────────────────── */
-.divider {
-  height: 1px;
-  background: var(--border);
-  margin: 1.5rem 0;
-}
-
-/* ── Animations ─────────────────────────────────────────────── */
-@keyframes fadeUp {
-  from { opacity: 0; transform: translateY(12px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes pulse-dot {
-  0%, 100% { opacity: 1; }
-  50%       { opacity: 0.4; }
-}
-
-.animate-in {
-  animation: fadeUp 0.35s ease both;
-}
-
-.animate-in-delay-1 { animation-delay: 0.05s; }
-.animate-in-delay-2 { animation-delay: 0.10s; }
-.animate-in-delay-3 { animation-delay: 0.15s; }
-.animate-in-delay-4 { animation-delay: 0.20s; }
-
-/* ── Misc ────────────────────────────────────────────────────── */
-.text-teal   { color: var(--teal); }
-.text-muted  { color: var(--text-muted); }
-.text-sm     { font-size: 0.875rem; }
-.text-xs     { font-size: 0.75rem; }
-.font-serif  { font-family: 'Fraunces', serif; }
-
-.mt-auto { margin-top: auto; }
-.w-full  { width: 100%; }
-.gap-sm  { gap: 0.5rem; }
-.flex    { display: flex; }
-.flex-col { flex-direction: column; }
-.items-center { align-items: center; }
-.justify-between { justify-content: space-between; }
