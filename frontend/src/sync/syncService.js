@@ -46,6 +46,7 @@ async function syncTriageRecord(queueItem, authToken) {
   const payload = {
     local_id:        record.local_id,
     patient_name:    record.patient_name    || 'Patient',
+    patient_gender:  record.patient_gender  || 'unknown',
     age_months:      record.age_months,
     symptoms:        record.symptoms,
     duration_weeks:  record.duration_weeks  || 0,

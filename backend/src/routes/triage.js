@@ -14,7 +14,7 @@ const router = express.Router()
 router.post('/', verifyToken, async (req, res, next) => {
   try {
     const {
-      local_id, patient_name, age_months, symptoms,
+      local_id, patient_name, patient_gender, age_months, symptoms,
       duration_weeks, prior_treatment, facility_id,
       submitted_by, submitted_at, offline_created
     } = req.body
@@ -36,7 +36,7 @@ router.post('/', verifyToken, async (req, res, next) => {
         .insert({
           local_id:      local_id ? `pat-${local_id}` : uuidv4(),
           age_months:    Number(age_months),
-          sex:           'unknown',
+          sex:           patient_gender || 'unknown',
           guardian_name: patient_name || null,
           facility_id:   facilityToUse,
           created_by:    workerIdToUse,

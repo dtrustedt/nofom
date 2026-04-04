@@ -22,15 +22,21 @@ const RISK_META = {
 // ─────────────────────────────────────────────────────────────
 // REFERRAL LETTER GENERATOR
 // ─────────────────────────────────────────────────────────────
-function buildReferralLetter({ patient_name, age_months, assessed_at, risk_level,
-                                risk_score, referral, explanation, symptoms }) {
+function buildReferralLetter({ patient_name, patient_gender, age_months,
+                                assessed_at, risk_level, risk_score,
+                                referral, explanation, symptoms }) {
   const ageYears  = Math.floor(age_months / 12)
   const ageMos    = age_months % 12
   const ageStr    = ageYears > 0
     ? `${ageYears} year${ageYears !== 1 ? 's' : ''} ${ageMos > 0 ? `${ageMos} month${ageMos !== 1 ? 's' : ''}` : ''}`.trim()
     : `${ageMos} month${ageMos !== 1 ? 's' : ''}`
 
-  const date      = new Date(assessed_at || Date.now())
+  // Format gender for letter
+  const genderStr = patient_gender && patient_gender !== 'unknown'
+    ? patient_gender.charAt(0).toUpperCase() + patient_gender.slice(1)
+    : 'Not recorded'
+
+  const date = new Date(assessed_at || Date.now())
     .toLocaleDateString('en-GB', { day:'2-digit', month:'long', year:'numeric' })
 
   const symptomLines = SYMPTOMS
@@ -47,6 +53,7 @@ Date of Assessment: ${date}
 PATIENT DETAILS
 Patient Name : ${patient_name || 'Not provided'}
 Age          : ${ageStr}
+Gender       : ${genderStr}
 
 TRIAGE RESULT
 Risk Level   : ${risk_level}
@@ -75,7 +82,6 @@ professional. Please attach clinical notes at the receiving
 facility.
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`
 }
-
 // ─────────────────────────────────────────────────────────────
 // REFERRAL LETTER DRAWER
 // ─────────────────────────────────────────────────────────────
@@ -214,7 +220,7 @@ function SlideNav({ onPrev, prevLabel, onNext, nextLabel }) {
 function Slide1({ result, goNext }) {
   const { risk_level, risk_score, max_possible_score,
           age_modifier, duration_label, override_applied,
-          primary_count, patient_name, age_months } = result
+          primary_count, patient_name, age_months, patient_gender } = result
   const meta  = RISK_META[risk_level] || RISK_META.LOW
   const Icon  = meta.Icon
   const pct   = Math.min(100, Math.round((risk_score / (max_possible_score || 200)) * 100))
@@ -245,6 +251,11 @@ function Slide1({ result, goNext }) {
           <p style={{ margin:'2px 0 0', fontSize:'0.8125rem', color:'var(--color-text-muted)' }}>
             Age: {ageYears > 0 ? `${ageYears}y ` : ''}{ageMos > 0 ? `${ageMos}m` : ''}
             {ageYears === 0 && ageMos === 0 ? `${age_months} months` : ''}
+          
+      {/* Gender — NEW */}
+            {patient_gender && patient_gender !== 'unknown'
+              ? ` · ${patient_gender.charAt(0).toUpperCase() + patient_gender.slice(1)}`
+              : ''}
           </p>
         </div>
         <div style={{

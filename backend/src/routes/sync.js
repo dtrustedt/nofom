@@ -46,7 +46,7 @@ router.post('/', verifyToken, async (req, res, next) => {
     for (const record of records) {
       try {
         const {
-          local_id, patient_name, age_months, symptoms,
+          local_id, patient_name, patient_gender, age_months, symptoms,
           duration_weeks, prior_treatment, submitted_at,
           submitted_by, facility_id, offline_created
         } = record
@@ -64,7 +64,7 @@ router.post('/', verifyToken, async (req, res, next) => {
             .insert({
               local_id:      local_id ? `pat-${local_id}` : uuidv4(),
               age_months:    Number(age_months),
-              sex:           'unknown',
+              sex:           patient_gender || 'unknown',
               guardian_name: patient_name || null,
               facility_id:   facility_id  || facilityToUse,
               created_by:    submitted_by || workerIdToUse,

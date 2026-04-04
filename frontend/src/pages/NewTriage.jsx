@@ -62,6 +62,7 @@ export default function NewTriage() {
   const { session, isOnline, workerProfile } = useAppStore()
   const setLastTriageResult = useAppStore(s => s.setLastTriageResult)
   const [patientName,    setPatientName]  = useState('')
+  const [gender, setGender] = useState('unknown')
   const [ageYears,       setAgeYears]     = useState('')
   const [ageMonths,      setAgeMonths]    = useState('')
   const [durationWeeks,  setDuration]     = useState('')
@@ -95,6 +96,7 @@ export default function NewTriage() {
       
       const localRecord = await saveTriageLocally({
         patient_name:    patientName.trim() || 'Patient',
+	patient_gender:  gender, 
         age_months:      totalAgeMonths,
         symptoms:        symptoms,
         duration_weeks:  parseInt(durationWeeks),
@@ -116,6 +118,7 @@ export default function NewTriage() {
         referral:     referral,
         local_id:     localRecord.local_id,
         patient_name: patientName.trim() || 'Patient',
+	patient_gender: gender,
         age_months:   totalAgeMonths,
         assessed_at:  localRecord.submitted_at,
         symptoms:     symptoms
@@ -172,6 +175,40 @@ export default function NewTriage() {
           </div>
         </SectionCard>
 
+
+        {/* Gender — NEW */}
+        <SectionCard title="Patient gender">
+          <div style={{ display:'flex', gap:8 }}>
+            {['Male', 'Female', 'Unknown'].map(option => (
+              <button
+                key={option}
+                type="button"
+                onClick={() => setGender(option.toLowerCase())}
+                style={{
+                  flex: 1,
+                   padding: '10px 8px',
+                  border: `1.5px solid ${gender === option.toLowerCase()
+                    ? 'var(--color-accent)'
+                    : 'var(--color-border-strong)'}`,
+                  borderRadius: 'var(--radius-md)',
+                  background: gender === option.toLowerCase()
+                    ? 'var(--color-primary-light)'
+                    : 'var(--color-surface)',
+                  color: gender === option.toLowerCase()
+                    ? 'var(--color-primary)'
+                    : 'var(--color-text-secondary)',
+                  fontFamily: 'var(--font-sans)',
+                  fontSize: '0.875rem',
+                  fontWeight: gender === option.toLowerCase() ? 700 : 400,
+                  cursor: 'pointer',
+                  transition: 'all 120ms'
+                }}
+              >
+                {option}
+              </button>
+            ))}
+          </div>
+        </SectionCard>
         {/* Age */}
         <SectionCard title="Patient age">
           <div style={{ display:'flex', gap:12 }}>
