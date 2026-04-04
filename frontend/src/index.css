@@ -523,3 +523,6 @@ body {
   line-height:   1.55;
 }
 
+/* Add at very bottom of frontend/src/index.css */
+/* Hide horizontal scroll indicator on swipe viewport */
+div[style*="overflowX: scroll"]::-webkit-scrollbar { display: none; }
