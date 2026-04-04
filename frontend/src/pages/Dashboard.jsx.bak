@@ -30,14 +30,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const load = () =>
-      getAllTriageLocally().then(setRecords).finally(() => setLoading(false))
-
-    load()
-
-    // Refresh list when user comes back to this tab — catches sync completing
-    window.addEventListener('focus', load)
-    return () => window.removeEventListener('focus', load)
+    getAllTriageLocally().then(setRecords).finally(() => setLoading(false))
   }, [])
 
   return (
