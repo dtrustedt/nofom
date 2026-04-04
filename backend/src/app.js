@@ -34,7 +34,7 @@ app.use(cors({
   methods:        ['GET','POST','PUT','PATCH','DELETE','OPTIONS'],
   allowedHeaders: ['Content-Type','Authorization'],
 }))
-app.options('/(.*)', cors())
+
 // ── General middleware ────────────────────────────────────────
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }))
 app.use(morgan('combined'))
