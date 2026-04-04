@@ -2,10 +2,11 @@
 'use strict'
 
 require('dotenv').config()
-const express    = require('express')
-const cors       = require('cors')
-const helmet     = require('helmet')
-const morgan     = require('morgan')
+const express   = require('express')
+const cors      = require('cors')
+const helmet    = require('helmet')
+const morgan    = require('morgan')
+const rateLimit = require('express-rate-limit')
 
 const triageRoutes  = require('./routes/triage')
 const patientRoutes = require('./routes/patients')
@@ -35,25 +36,43 @@ app.use(cors({
   allowedHeaders: ['Content-Type','Authorization'],
 }))
 
-// ── General middleware ────────────────────────────────────────
+// ── Rate limiting ─────────────────────────────────────────────
+// General API limit: 100 requests per 15 minutes per IP
+const generalLimiter = rateLimit({
+  windowMs:         15 * 60 * 1000,
+  max:              100,
+  standardHeaders:  true,
+  legacyHeaders:    false,
+  message:          { error: 'Too many requests. Please try again later.' }
+})
+
+// Sync limit: 30 sync requests per 15 minutes
+// Prevents infinite retry loops from buggy clients
+const syncLimiter = rateLimit({
+  windowMs:         15 * 60 * 1000,
+  max:              30,
+  standardHeaders:  true,
+  legacyHeaders:    false,
+  message:          { error: 'Sync rate limit exceeded. Wait before retrying.' }
+})
+
+// ── Security middleware ───────────────────────────────────────
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }))
 app.use(morgan('combined'))
 app.use(express.json({ limit: '500kb' }))
 
-// ── Public routes (no auth required) ─────────────────────────
+// ── Public routes ─────────────────────────────────────────────
 app.get('/health', (req, res) => res.json({
   status: 'ok', service: 'nofom-api', ts: new Date().toISOString()
 }))
-app.use('/api/auth', authRoutes)
+app.use('/api/auth', generalLimiter, authRoutes)
 
-// ── Protected routes (JWT required) ──────────────────────────
-// Auth middleware is applied per-route inside each router file
-// so individual endpoints can opt into optionalToken if needed
-app.use('/api/triage',   triageRoutes)
-app.use('/api/patients', patientRoutes)
-app.use('/api/sync',     syncRoutes)
+// ── Protected routes ──────────────────────────────────────────
+app.use('/api/triage',   generalLimiter, triageRoutes)
+app.use('/api/patients', generalLimiter, patientRoutes)
+app.use('/api/sync',     syncLimiter,    syncRoutes)
 
-// ── Error handler (must be last) ─────────────────────────────
+// ── Error handler ─────────────────────────────────────────────
 app.use(errorHandler)
 
 module.exports = app
