@@ -1,6 +1,6 @@
 // frontend/src/pages/NewTriage.jsx
 import { useState, useMemo }  from 'react'
-import { useNavigate }        from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import Header                 from '../components/layout/Header'
 import { SYMPTOMS }           from '../shared/triageSchema.js'
 import { runTriage }          from '../engine/triageRules'
@@ -9,7 +9,6 @@ import { saveTriageLocally }  from '../db/localDb'
 import { syncPendingRecords } from '../sync/syncService'
 import useAppStore            from '../store/useAppStore'
 import { AlertTriangle, ChevronLeft, User, Building2 } from 'lucide-react'
-import { useNavigate, useLocation } from 'react-router-dom'
 
 // Replace: const navigate = useNavigate()
 // With:
