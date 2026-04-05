@@ -1,12 +1,14 @@
 // frontend/src/pages/Dashboard.jsx
-import { useState, useEffect } from 'react'
-import { useNavigate }         from 'react-router-dom'
-import Header                  from '../components/layout/Header'
-import { getAllTriageLocally }  from '../db/localDb'
-import { PlusCircle, Clock, ChevronRight, ClipboardList, Building2 } from 'lucide-react'
-import useAppStore             from '../store/useAppStore'
+import { useState, useEffect }  from 'react'
+import { useNavigate }          from 'react-router-dom'
+import Header                   from '../components/layout/Header'
+import { getAllTriageLocally }   from '../db/localDb'
+import useAppStore              from '../store/useAppStore'
+import {
+  PlusCircle, Clock, ChevronRight,
+  ClipboardList, Building2
+} from 'lucide-react'
 
-// ✅ RISK_PILL and RiskPill stay outside — they are not hooks
 const RISK_PILL = {
   HIGH:   { bg:'var(--color-high)',   color:'white' },
   MEDIUM: { bg:'var(--color-medium)', color:'white' },
@@ -14,7 +16,10 @@ const RISK_PILL = {
 }
 
 function RiskPill({ level }) {
-  const s = RISK_PILL[level] || { bg:'var(--color-border)', color:'var(--color-text-secondary)' }
+  const s = RISK_PILL[level] || {
+    bg:'var(--color-border)',
+    color:'var(--color-text-secondary)'
+  }
   return (
     <span style={{
       background: s.bg, color: s.color,
@@ -28,18 +33,20 @@ function RiskPill({ level }) {
 }
 
 export default function Dashboard() {
-  const navigate = useNavigate()
-
-  // ✅ MOVED INSIDE — hooks must be inside a component
+  const navigate                      = useNavigate()
   const { workerProfile, facilities } = useAppStore()
-  const workerFacility = facilities.find(f => f.id === workerProfile?.facility_id)
+  const workerFacility                = facilities.find(
+    f => f.id === workerProfile?.facility_id
+  )
 
   const [records, setRecords] = useState([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     const load = () =>
-      getAllTriageLocally().then(setRecords).finally(() => setLoading(false))
+      getAllTriageLocally()
+        .then(setRecords)
+        .finally(() => setLoading(false))
     load()
     window.addEventListener('focus', load)
     return () => window.removeEventListener('focus', load)
@@ -59,7 +66,8 @@ export default function Dashboard() {
             display:'flex', alignItems:'center', justifyContent:'space-between',
             cursor:'pointer', fontFamily:'var(--font-sans)',
             marginBottom:'16px', marginTop:'8px',
-            boxShadow:'0 4px 16px rgba(10,61,107,0.25)', transition:'transform 100ms'
+            boxShadow:'0 4px 16px rgba(10,61,107,0.25)',
+            transition:'transform 100ms'
           }}
           onMouseDown={e => e.currentTarget.style.transform='scale(0.99)'}
           onMouseUp={e => e.currentTarget.style.transform='scale(1)'}
@@ -68,7 +76,8 @@ export default function Dashboard() {
             <p style={{ margin:0, fontWeight:700, fontSize:'1rem' }}>
               New Triage Assessment
             </p>
-            <p style={{ margin:'3px 0 0', fontSize:'0.875rem', color:'rgba(255,255,255,0.7)' }}>
+            <p style={{ margin:'3px 0 0', fontSize:'0.875rem',
+                        color:'rgba(255,255,255,0.7)' }}>
               Start a new patient evaluation
             </p>
           </div>
@@ -85,13 +94,17 @@ export default function Dashboard() {
             borderRadius:'var(--radius-md)',
             marginBottom:16
           }}>
-            <Building2 size={13} style={{ color:'var(--color-text-muted)', flexShrink:0 }} />
-            <p style={{ margin:0, fontSize:'0.8125rem', color:'var(--color-text-secondary)' }}>
+            <Building2 size={13} style={{
+              color:'var(--color-text-muted)', flexShrink:0
+            }} />
+            <p style={{ margin:0, fontSize:'0.8125rem',
+                        color:'var(--color-text-secondary)' }}>
               Your facility:{' '}
               <strong style={{ color:'var(--color-text-primary)' }}>
                 {workerFacility.name}
               </strong>
-              <span style={{ marginLeft:6, fontSize:'0.75rem', color:'var(--color-text-muted)' }}>
+              <span style={{ marginLeft:6, fontSize:'0.75rem',
+                             color:'var(--color-text-muted)' }}>
                 {workerFacility.location}
               </span>
             </p>
@@ -99,7 +112,9 @@ export default function Dashboard() {
         )}
 
         {/* Section heading */}
-        <p className="nf-section-title" style={{ display:'flex', alignItems:'center', gap:6 }}>
+        <p className="nf-section-title" style={{
+          display:'flex', alignItems:'center', gap:6
+        }}>
           <ClipboardList size={13} />
           Recent Assessments
         </p>
@@ -114,7 +129,8 @@ export default function Dashboard() {
         {!loading && records.length === 0 && (
           <div className="nf-card nf-empty">
             <ClipboardList size={36} />
-            <p style={{ fontWeight:600, margin:'0 0 4px', color:'var(--color-text-secondary)' }}>
+            <p style={{ fontWeight:600, margin:'0 0 4px',
+                        color:'var(--color-text-secondary)' }}>
               No assessments yet
             </p>
             <p style={{ fontSize:'0.875rem' }}>
@@ -126,12 +142,20 @@ export default function Dashboard() {
         {!loading && records.length > 0 && (
           <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
             {records.map(r => (
-              <div key={r.local_id} className="nf-record-item">
+              <div
+                key={r.local_id}
+                className="nf-record-item"
+                onClick={() => navigate(`/triage/${r.local_id}`)}
+                style={{ cursor:'pointer' }}
+              >
                 <div style={{ flex:1, minWidth:0 }}>
-                  <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:5 }}>
+                  <div style={{ display:'flex', alignItems:'center',
+                                gap:8, marginBottom:5 }}>
                     <RiskPill level={r.risk_level} />
                     {!r.synced_at && (
-                      <span style={{ fontSize:'0.75rem', color:'var(--color-medium)', fontWeight:600 }}>
+                      <span style={{ fontSize:'0.75rem',
+                                     color:'var(--color-medium)',
+                                     fontWeight:600 }}>
                         <span className="nf-sync-dot" />
                         Pending sync
                       </span>
@@ -139,9 +163,9 @@ export default function Dashboard() {
                   </div>
                   <p style={{ margin:0, fontSize:'0.9375rem', fontWeight:500,
                               color:'var(--color-text-primary)' }}>
-                    {r.patient_name && (
-                      <span style={{ marginRight:6 }}>{r.patient_name} ·</span>
-                    )}
+                    {r.patient_name
+                      ? <span>{r.patient_name} · </span>
+                      : null}
                     Age {Math.floor(r.age_months/12)}y {r.age_months%12}m
                     <span style={{ color:'var(--color-text-muted)', fontWeight:400 }}>
                       {' '}· Score {r.risk_score}
@@ -157,7 +181,9 @@ export default function Dashboard() {
                     })}
                   </p>
                 </div>
-                <ChevronRight size={16} style={{ color:'var(--color-border-strong)', flexShrink:0 }} />
+                <ChevronRight size={16} style={{
+                  color:'var(--color-border-strong)', flexShrink:0
+                }} />
               </div>
             ))}
           </div>

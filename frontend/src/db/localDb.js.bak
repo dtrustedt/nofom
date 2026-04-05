@@ -1,65 +1,27 @@
 // frontend/src/db/localDb.js
-// =============================================================
-// NOFOM LOCAL DATABASE — Dexie.js (IndexedDB wrapper)
-// =============================================================
-// All data is written here first, before any network call.
-// The sync service reads from here and pushes to Supabase.
-//
-// Schema version history:
-//   v1 — initial: patients, triage_assessments, sync_queue
-// =============================================================
-
 import Dexie from 'dexie'
 
 export const db = new Dexie('NofomDB')
 
+// ── Version 2: adds patient_name field ──────────────────────
+// Version 1 stays declared so Dexie can upgrade existing installs
 db.version(1).stores({
-  // Patients created locally
-  // ++ = auto-increment PK, & = unique index, * = multi-entry index
-  patients: `
-    ++_localId,
-    &local_id,
-    age_months,
-    created_at,
-    synced_at
-  `,
-
-  // Triage assessments — created offline, synced later
-  triage_assessments: `
-    ++_localId,
-    &local_id,
-    patient_local_id,
-    risk_level,
-    submitted_at,
-    synced_at
-  `,
-
-  // Sync queue — records waiting to be pushed to server
-  // status: 'pending' | 'syncing' | 'synced' | 'failed'
-  sync_queue: `
-    ++id,
-    entity_type,
-    local_id,
-    status,
-    created_at,
-    last_attempted_at
-  `
+  patients:           '++_localId, &local_id, age_months, created_at, synced_at',
+  triage_assessments: '++_localId, &local_id, patient_local_id, risk_level, submitted_at, synced_at',
+  sync_queue:         '++id, entity_type, local_id, status, created_at, last_attempted_at'
 })
 
-// =============================================================
-// PATIENT OPERATIONS
-// =============================================================
+db.version(2).stores({
+  patients:           '++_localId, &local_id, age_months, created_at, synced_at',
+  triage_assessments: '++_localId, &local_id, patient_local_id, patient_name, risk_level, submitted_at, synced_at',
+  sync_queue:         '++id, entity_type, local_id, status, created_at, last_attempted_at'
+})
 
+// ── Patient ops ──────────────────────────────────────────────
 export async function savePatientLocally(patientData) {
   const local_id = patientData.local_id || crypto.randomUUID()
-  const record = {
-    ...patientData,
-    local_id,
-    created_at: new Date().toISOString(),
-    synced_at:  null  // null = not yet synced
-  }
+  const record = { ...patientData, local_id, created_at: new Date().toISOString(), synced_at: null }
   await db.patients.add(record)
-  // Queue for sync
   await addToSyncQueue('patient', local_id)
   return record
 }
@@ -68,10 +30,7 @@ export async function getAllPatientsLocally() {
   return db.patients.orderBy('created_at').reverse().toArray()
 }
 
-// =============================================================
-// TRIAGE OPERATIONS
-// =============================================================
-
+// ── Triage ops ───────────────────────────────────────────────
 export async function saveTriageLocally(triageData) {
   const local_id = triageData.local_id || crypto.randomUUID()
   const record = {
@@ -87,40 +46,26 @@ export async function saveTriageLocally(triageData) {
 }
 
 export async function getAllTriageLocally() {
-  return db.triage_assessments
-    .orderBy('submitted_at')
-    .reverse()
-    .toArray()
+  return db.triage_assessments.orderBy('submitted_at').reverse().toArray()
 }
 
 export async function getTriageByLocalId(local_id) {
-  return db.triage_assessments
-    .where('local_id')
-    .equals(local_id)
-    .first()
+  return db.triage_assessments.where('local_id').equals(local_id).first()
 }
 
 export async function markTriageSynced(local_id, server_id) {
-  await db.triage_assessments
-    .where('local_id')
-    .equals(local_id)
-    .modify({
-      synced_at: new Date().toISOString(),
-      server_id             // store server UUID for reference
-    })
+  await db.triage_assessments.where('local_id').equals(local_id).modify({
+    synced_at: new Date().toISOString(),
+    server_id
+  })
 }
 
-// =============================================================
-// SYNC QUEUE OPERATIONS
-// =============================================================
-
+// ── Sync queue ops ───────────────────────────────────────────
 export async function addToSyncQueue(entityType, localId) {
-  // Avoid duplicate queue entries
   const existing = await db.sync_queue
     .where('local_id').equals(localId)
-    .and(item => item.status === 'pending')
+    .and(i => i.status === 'pending')
     .first()
-
   if (!existing) {
     await db.sync_queue.add({
       entity_type:       entityType,
@@ -134,25 +79,15 @@ export async function addToSyncQueue(entityType, localId) {
 }
 
 export async function getPendingSyncItems() {
-  return db.sync_queue
-    .where('status')
-    .equals('pending')
-    .toArray()
+  return db.sync_queue.where('status').equals('pending').toArray()
 }
 
 export async function markSyncItemComplete(id) {
-  await db.sync_queue.update(id, {
-    status:            'synced',
-    last_attempted_at: new Date().toISOString()
-  })
+  await db.sync_queue.update(id, { status: 'synced', last_attempted_at: new Date().toISOString() })
 }
 
 export async function markSyncItemFailed(id, error) {
-  await db.sync_queue.update(id, {
-    status:            'failed',
-    last_attempted_at: new Date().toISOString(),
-    error:             String(error)
-  })
+  await db.sync_queue.update(id, { status: 'failed', last_attempted_at: new Date().toISOString(), error: String(error) })
 }
 
 export async function getPendingSyncCount() {

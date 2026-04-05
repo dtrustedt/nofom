@@ -25,7 +25,6 @@ function Protected({ children }) {
   return user ? children : <Navigate to="/login" replace />
 }
 
-// Fetch the health_workers row for the logged-in user
 async function fetchWorkerProfile(userId, setWorkerProfile) {
   if (!userId) return
   const { data, error } = await supabase
@@ -38,43 +37,40 @@ async function fetchWorkerProfile(userId, setWorkerProfile) {
     console.warn('[Auth] Could not fetch worker profile:', error.message)
     return
   }
-
-  console.log('[Auth] Worker profile loaded:', data)
   setWorkerProfile(data)
 }
 
 export default function App() {
   const {
-    setSession, setOnline,
-    setPendingSyncCount, setWorkerProfile
+    setSession, setOnline, setPendingSyncCount,
+    setWorkerProfile, loadFacilities
   } = useAppStore()
 
-  // ── 1. Bootstrap Supabase session ────────────────────────
+  // ── 1. Bootstrap auth + load supporting data ─────────────
   useEffect(() => {
-    // Get existing session on mount
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session)
       if (session?.user?.id) {
         fetchWorkerProfile(session.user.id, setWorkerProfile)
+        loadFacilities()   // ← load facilities once session is known
       }
     })
 
-    // Listen for login / logout events
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, session) => {
         setSession(session)
         if (session?.user?.id) {
           fetchWorkerProfile(session.user.id, setWorkerProfile)
+          loadFacilities()
         } else {
           setWorkerProfile(null)
         }
       }
     )
-
     return () => subscription.unsubscribe()
   }, [])
 
-  // ── 2. Track connectivity ─────────────────────────────────
+  // ── 2. Connectivity tracking ──────────────────────────────
   useEffect(() => {
     const goOnline  = () => setOnline(true)
     const goOffline = () => setOnline(false)
@@ -86,7 +82,7 @@ export default function App() {
     }
   }, [])
 
-  // ── 3. Sync on reconnect + retry failed on startup ────────
+  // ── 3. Sync setup ─────────────────────────────────────────
   useEffect(() => {
     registerSyncOnReconnect(
       () => useAppStore.getState().session?.access_token
@@ -98,7 +94,7 @@ export default function App() {
     }
   }, [])
 
-  // ── 4. Refresh pending sync count every 10s ───────────────
+  // ── 4. Pending sync count refresh ────────────────────────
   useEffect(() => {
     const refresh = async () => {
       const count = await getPendingSyncCount()
@@ -113,11 +109,11 @@ export default function App() {
     <BrowserRouter>
       <OfflineBanner />
       <Routes>
-        <Route path="/login"          element={<Login />} />
-        <Route path="/"               element={<Protected><Dashboard /></Protected>} />
-        <Route path="/triage/new"     element={<Protected><NewTriage /></Protected>} />
-        <Route path="/triage/result"  element={<Protected><TriageResult /></Protected>} />
-        <Route path="*"               element={<Navigate to="/" replace />} />
+        <Route path="/login"         element={<Login />} />
+        <Route path="/"              element={<Protected><Dashboard /></Protected>} />
+        <Route path="/triage/new"    element={<Protected><NewTriage /></Protected>} />
+        <Route path="/triage/result" element={<Protected><TriageResult /></Protected>} />
+        <Route path="*"              element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
   )

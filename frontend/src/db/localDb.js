@@ -60,6 +60,26 @@ export async function markTriageSynced(local_id, server_id) {
   })
 }
 
+
+// Add to frontend/src/db/localDb.js
+
+export async function deleteTriageLocally(local_id) {
+  // Remove the triage record
+  await db.triage_assessments
+    .where('local_id').equals(local_id)
+    .delete()
+
+  // Remove from sync queue too — no point syncing a deleted record
+  await db.sync_queue
+    .where('local_id').equals(local_id)
+    .delete()
+}
+
+export async function getTriageWithDetails(local_id) {
+  return db.triage_assessments
+    .where('local_id').equals(local_id)
+    .first()
+}
 // ── Sync queue ops ───────────────────────────────────────────
 export async function addToSyncQueue(entityType, localId) {
   const existing = await db.sync_queue

@@ -9,6 +9,26 @@ import { saveTriageLocally }  from '../db/localDb'
 import { syncPendingRecords } from '../sync/syncService'
 import useAppStore            from '../store/useAppStore'
 import { AlertTriangle, ChevronLeft, User, Building2 } from 'lucide-react'
+import { useNavigate, useLocation } from 'react-router-dom'
+
+// Replace: const navigate = useNavigate()
+// With:
+const navigate  = useNavigate()
+const location  = useLocation()
+const prefill   = location.state?.prefill || {}
+
+// Update the useState initialisations to use prefill values:
+const [patientName, setPatientName] = useState(prefill.patient_name || '')
+const [gender,      setGender]      = useState(prefill.patient_gender || 'unknown')
+const [ageYears,    setAgeYears]    = useState(
+  prefill.age_months ? String(Math.floor(prefill.age_months / 12)) : ''
+)
+const [ageMonths,   setAgeMonths]   = useState(
+  prefill.age_months ? String(prefill.age_months % 12) : ''
+)
+const [selectedFacilityId, setSelectedFacilityId] = useState(
+  prefill.facility_id || workerProfile?.facility_id || ''
+)
 
 // ── Facility type label ──────────────────────────────────────
 const FACILITY_TYPE_LABEL = {
