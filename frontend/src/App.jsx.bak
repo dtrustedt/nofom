@@ -11,6 +11,7 @@ import Dashboard     from './pages/Dashboard'
 import NewTriage     from './pages/NewTriage'
 import TriageResult  from './pages/TriageResult'
 import OfflineBanner from './components/layout/OfflineBanner'
+import AssessmentDetail from './pages/AssessmentDetail'
 
 function Protected({ children }) {
   const { user, authLoading } = useAppStore()
@@ -113,6 +114,7 @@ export default function App() {
         <Route path="/"              element={<Protected><Dashboard /></Protected>} />
         <Route path="/triage/new"    element={<Protected><NewTriage /></Protected>} />
         <Route path="/triage/result" element={<Protected><TriageResult /></Protected>} />
+	<Route path="/triage/:id"    element={<Protected><AssessmentDetail /></Protected>} />
         <Route path="*"              element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

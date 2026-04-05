@@ -6,12 +6,16 @@ import useAppStore                 from './store/useAppStore'
 import { registerSyncOnReconnect, retryFailedSyncItems } from './sync/syncService'
 import { getPendingSyncCount }     from './db/localDb'
 
-import Login         from './pages/Login'
-import Dashboard     from './pages/Dashboard'
-import NewTriage     from './pages/NewTriage'
-import TriageResult  from './pages/TriageResult'
-import OfflineBanner from './components/layout/OfflineBanner'
-import AssessmentDetail from './pages/AssessmentDetail'
+import Login                 from './pages/Login'
+import Dashboard             from './pages/Dashboard'
+import NewTriage             from './pages/NewTriage'
+import TriageResult          from './pages/TriageResult'
+import AssessmentDetail      from './pages/AssessmentDetail'
+import AdminDashboard        from './pages/AdminDashboard'
+import AdminAssessmentDetail from './pages/AdminAssessmentDetail'
+import OfflineBanner         from './components/layout/OfflineBanner'
+
+// ── Route guards ──────────────────────────────────────────────
 
 function Protected({ children }) {
   const { user, authLoading } = useAppStore()
@@ -25,6 +29,26 @@ function Protected({ children }) {
   )
   return user ? children : <Navigate to="/login" replace />
 }
+
+function AdminProtected({ children }) {
+  const { user, authLoading, workerProfile } = useAppStore()
+  if (authLoading) return (
+    <div style={{ minHeight:'100dvh', display:'flex',
+                  alignItems:'center', justifyContent:'center' }}>
+      <p style={{ color:'var(--color-text-muted)', fontSize:'0.875rem' }}>
+        Loading…
+      </p>
+    </div>
+  )
+  if (!user) return <Navigate to="/login" replace />
+  // workerProfile may still be loading — wait for it before rejecting
+  if (workerProfile && workerProfile.role !== 'admin') {
+    return <Navigate to="/" replace />
+  }
+  return children
+}
+
+// ── Worker profile fetch ──────────────────────────────────────
 
 async function fetchWorkerProfile(userId, setWorkerProfile) {
   if (!userId) return
@@ -41,19 +65,21 @@ async function fetchWorkerProfile(userId, setWorkerProfile) {
   setWorkerProfile(data)
 }
 
+// ── App ───────────────────────────────────────────────────────
+
 export default function App() {
   const {
     setSession, setOnline, setPendingSyncCount,
     setWorkerProfile, loadFacilities
   } = useAppStore()
 
-  // ── 1. Bootstrap auth + load supporting data ─────────────
+  // 1. Bootstrap auth
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session)
       if (session?.user?.id) {
         fetchWorkerProfile(session.user.id, setWorkerProfile)
-        loadFacilities()   // ← load facilities once session is known
+        loadFacilities()
       }
     })
 
@@ -71,7 +97,7 @@ export default function App() {
     return () => subscription.unsubscribe()
   }, [])
 
-  // ── 2. Connectivity tracking ──────────────────────────────
+  // 2. Connectivity tracking
   useEffect(() => {
     const goOnline  = () => setOnline(true)
     const goOffline = () => setOnline(false)
@@ -83,7 +109,7 @@ export default function App() {
     }
   }, [])
 
-  // ── 3. Sync setup ─────────────────────────────────────────
+  // 3. Sync setup
   useEffect(() => {
     registerSyncOnReconnect(
       () => useAppStore.getState().session?.access_token
@@ -95,7 +121,7 @@ export default function App() {
     }
   }, [])
 
-  // ── 4. Pending sync count refresh ────────────────────────
+  // 4. Pending sync count refresh
   useEffect(() => {
     const refresh = async () => {
       const count = await getPendingSyncCount()
@@ -110,12 +136,33 @@ export default function App() {
     <BrowserRouter>
       <OfflineBanner />
       <Routes>
-        <Route path="/login"         element={<Login />} />
-        <Route path="/"              element={<Protected><Dashboard /></Protected>} />
-        <Route path="/triage/new"    element={<Protected><NewTriage /></Protected>} />
-        <Route path="/triage/result" element={<Protected><TriageResult /></Protected>} />
-	<Route path="/triage/:id"    element={<Protected><AssessmentDetail /></Protected>} />
-        <Route path="*"              element={<Navigate to="/" replace />} />
+        {/* Public */}
+        <Route path="/login" element={<Login />} />
+
+        {/* Worker routes */}
+        <Route path="/" element={
+          <Protected><Dashboard /></Protected>
+        } />
+        <Route path="/triage/new" element={
+          <Protected><NewTriage /></Protected>
+        } />
+        <Route path="/triage/result" element={
+          <Protected><TriageResult /></Protected>
+        } />
+        <Route path="/triage/:id" element={
+          <Protected><AssessmentDetail /></Protected>
+        } />
+
+        {/* Admin routes */}
+        <Route path="/admin" element={
+          <AdminProtected><AdminDashboard /></AdminProtected>
+        } />
+        <Route path="/admin/assessment/:id" element={
+          <AdminProtected><AdminAssessmentDetail /></AdminProtected>
+        } />
+
+        {/* Catch-all */}
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
   )
