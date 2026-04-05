@@ -2,7 +2,12 @@ import { useState, useEffect } from 'react'
 import { useNavigate }          from 'react-router-dom'
 import Header                   from '../components/layout/Header'
 import { getAllTriageLocally }   from '../db/localDb'
-import { PlusCircle, Clock, ChevronRight, ClipboardList } from 'lucide-react'
+import { PlusCircle, Clock, ChevronRight, ClipboardList, Building2 } from 'lucide-react'
+import useAppStore from '../store/useAppStore'
+
+
+const { workerProfile, facilities } = useAppStore()
+const workerFacility = facilities.find(f => f.id === workerProfile?.facility_id)
 
 const RISK_PILL = {
   HIGH:   { bg:'var(--color-high)',   color:'white' },
@@ -30,7 +35,14 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    getAllTriageLocally().then(setRecords).finally(() => setLoading(false))
+    const load = () =>
+      getAllTriageLocally().then(setRecords).finally(() => setLoading(false))
+
+    load()
+
+    // Refresh list when user comes back to this tab — catches sync completing
+    window.addEventListener('focus', load)
+    return () => window.removeEventListener('focus', load)
   }, [])
 
   return (
@@ -68,6 +80,29 @@ export default function Dashboard() {
           <PlusCircle size={26} style={{ flexShrink:0 }} />
         </button>
 
+
+      {/* Under the New Triage CTA button, before the section heading */}
+      {workerFacility && (
+        <div style={{
+          display:'flex', alignItems:'center', gap:6,
+          padding:'8px 12px',
+          background:'var(--color-surface)',
+          border:'1px solid var(--color-border)',
+          borderRadius:'var(--radius-md)',
+          marginBottom:16
+        }}>
+          <Building2 size={13} style={{ color:'var(--color-text-muted)', flexShrink:0 }} />
+          <p style={{ margin:0, fontSize:'0.8125rem', color:'var(--color-text-secondary)' }}>
+            Your facility:{' '}
+            <strong style={{ color:'var(--color-text-primary)' }}>
+              {workerFacility.name}
+            </strong>
+            <span style={{ marginLeft:6, fontSize:'0.75rem', color:'var(--color-text-muted)' }}>
+              {workerFacility.location}
+            </span>
+          </p>
+        </div>
+      )}
         {/* Section heading */}
         <p className="nf-section-title" style={{ display:'flex', alignItems:'center', gap:6 }}>
           <ClipboardList size={13} />

@@ -1,14 +1,12 @@
+// frontend/src/pages/Dashboard.jsx
 import { useState, useEffect } from 'react'
-import { useNavigate }          from 'react-router-dom'
-import Header                   from '../components/layout/Header'
-import { getAllTriageLocally }   from '../db/localDb'
+import { useNavigate }         from 'react-router-dom'
+import Header                  from '../components/layout/Header'
+import { getAllTriageLocally }  from '../db/localDb'
 import { PlusCircle, Clock, ChevronRight, ClipboardList, Building2 } from 'lucide-react'
-import useAppStore from '../store/useAppStore'
+import useAppStore             from '../store/useAppStore'
 
-
-const { workerProfile, facilities } = useAppStore()
-const workerFacility = facilities.find(f => f.id === workerProfile?.facility_id)
-
+// ✅ RISK_PILL and RiskPill stay outside — they are not hooks
 const RISK_PILL = {
   HIGH:   { bg:'var(--color-high)',   color:'white' },
   MEDIUM: { bg:'var(--color-medium)', color:'white' },
@@ -30,17 +28,19 @@ function RiskPill({ level }) {
 }
 
 export default function Dashboard() {
-  const navigate              = useNavigate()
+  const navigate = useNavigate()
+
+  // ✅ MOVED INSIDE — hooks must be inside a component
+  const { workerProfile, facilities } = useAppStore()
+  const workerFacility = facilities.find(f => f.id === workerProfile?.facility_id)
+
   const [records, setRecords] = useState([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     const load = () =>
       getAllTriageLocally().then(setRecords).finally(() => setLoading(false))
-
     load()
-
-    // Refresh list when user comes back to this tab — catches sync completing
     window.addEventListener('focus', load)
     return () => window.removeEventListener('focus', load)
   }, [])
@@ -48,23 +48,18 @@ export default function Dashboard() {
   return (
     <div className="nf-page">
       <Header />
-
       <main className="nf-main">
-        {/* New triage — primary CTA */}
+
+        {/* New triage CTA */}
         <button
           onClick={() => navigate('/triage/new')}
           style={{
-            width:'100%',
-            background:'var(--color-primary)',
-            color:'white',
-            border:'none',
-            borderRadius:'var(--radius-xl)',
-            padding:'20px',
+            width:'100%', background:'var(--color-primary)', color:'white',
+            border:'none', borderRadius:'var(--radius-xl)', padding:'20px',
             display:'flex', alignItems:'center', justifyContent:'space-between',
             cursor:'pointer', fontFamily:'var(--font-sans)',
-            marginBottom:'24px', marginTop:'8px',
-            boxShadow:'0 4px 16px rgba(10,61,107,0.25)',
-            transition:'transform 100ms'
+            marginBottom:'16px', marginTop:'8px',
+            boxShadow:'0 4px 16px rgba(10,61,107,0.25)', transition:'transform 100ms'
           }}
           onMouseDown={e => e.currentTarget.style.transform='scale(0.99)'}
           onMouseUp={e => e.currentTarget.style.transform='scale(1)'}
@@ -80,29 +75,29 @@ export default function Dashboard() {
           <PlusCircle size={26} style={{ flexShrink:0 }} />
         </button>
 
+        {/* Worker facility badge */}
+        {workerFacility && (
+          <div style={{
+            display:'flex', alignItems:'center', gap:6,
+            padding:'8px 12px',
+            background:'var(--color-surface)',
+            border:'1px solid var(--color-border)',
+            borderRadius:'var(--radius-md)',
+            marginBottom:16
+          }}>
+            <Building2 size={13} style={{ color:'var(--color-text-muted)', flexShrink:0 }} />
+            <p style={{ margin:0, fontSize:'0.8125rem', color:'var(--color-text-secondary)' }}>
+              Your facility:{' '}
+              <strong style={{ color:'var(--color-text-primary)' }}>
+                {workerFacility.name}
+              </strong>
+              <span style={{ marginLeft:6, fontSize:'0.75rem', color:'var(--color-text-muted)' }}>
+                {workerFacility.location}
+              </span>
+            </p>
+          </div>
+        )}
 
-      {/* Under the New Triage CTA button, before the section heading */}
-      {workerFacility && (
-        <div style={{
-          display:'flex', alignItems:'center', gap:6,
-          padding:'8px 12px',
-          background:'var(--color-surface)',
-          border:'1px solid var(--color-border)',
-          borderRadius:'var(--radius-md)',
-          marginBottom:16
-        }}>
-          <Building2 size={13} style={{ color:'var(--color-text-muted)', flexShrink:0 }} />
-          <p style={{ margin:0, fontSize:'0.8125rem', color:'var(--color-text-secondary)' }}>
-            Your facility:{' '}
-            <strong style={{ color:'var(--color-text-primary)' }}>
-              {workerFacility.name}
-            </strong>
-            <span style={{ marginLeft:6, fontSize:'0.75rem', color:'var(--color-text-muted)' }}>
-              {workerFacility.location}
-            </span>
-          </p>
-        </div>
-      )}
         {/* Section heading */}
         <p className="nf-section-title" style={{ display:'flex', alignItems:'center', gap:6 }}>
           <ClipboardList size={13} />
@@ -110,7 +105,8 @@ export default function Dashboard() {
         </p>
 
         {loading && (
-          <p style={{ color:'var(--color-text-muted)', fontSize:'0.875rem', textAlign:'center', padding:'32px 0' }}>
+          <p style={{ color:'var(--color-text-muted)', fontSize:'0.875rem',
+                      textAlign:'center', padding:'32px 0' }}>
             Loading…
           </p>
         )}
@@ -141,13 +137,19 @@ export default function Dashboard() {
                       </span>
                     )}
                   </div>
-                  <p style={{ margin:0, fontSize:'0.9375rem', fontWeight:500, color:'var(--color-text-primary)' }}>
+                  <p style={{ margin:0, fontSize:'0.9375rem', fontWeight:500,
+                              color:'var(--color-text-primary)' }}>
+                    {r.patient_name && (
+                      <span style={{ marginRight:6 }}>{r.patient_name} ·</span>
+                    )}
                     Age {Math.floor(r.age_months/12)}y {r.age_months%12}m
                     <span style={{ color:'var(--color-text-muted)', fontWeight:400 }}>
                       {' '}· Score {r.risk_score}
                     </span>
                   </p>
-                  <p style={{ margin:'3px 0 0', fontSize:'0.8125rem', color:'var(--color-text-muted)', display:'flex', alignItems:'center', gap:4 }}>
+                  <p style={{ margin:'3px 0 0', fontSize:'0.8125rem',
+                              color:'var(--color-text-muted)',
+                              display:'flex', alignItems:'center', gap:4 }}>
                     <Clock size={11} />
                     {new Date(r.submitted_at).toLocaleString('en-GB', {
                       day:'2-digit', month:'short', year:'numeric',
