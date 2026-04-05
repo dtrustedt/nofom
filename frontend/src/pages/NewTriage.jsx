@@ -1,35 +1,16 @@
 // frontend/src/pages/NewTriage.jsx
-import { useState, useMemo }  from 'react'
+import { useState, useMemo }        from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import Header                 from '../components/layout/Header'
-import { SYMPTOMS }           from '../shared/triageSchema.js'
-import { runTriage }          from '../engine/triageRules'
-import { generateReferral }   from '../engine/referralEngine'
-import { saveTriageLocally }  from '../db/localDb'
-import { syncPendingRecords } from '../sync/syncService'
-import useAppStore            from '../store/useAppStore'
+import Header                       from '../components/layout/Header'
+import { SYMPTOMS }                 from '../shared/triageSchema.js'
+import { runTriage }                from '../engine/triageRules'
+import { generateReferral }         from '../engine/referralEngine'
+import { saveTriageLocally }        from '../db/localDb'
+import { syncPendingRecords }       from '../sync/syncService'
+import useAppStore                  from '../store/useAppStore'
 import { AlertTriangle, ChevronLeft, User, Building2 } from 'lucide-react'
 
-// Replace: const navigate = useNavigate()
-// With:
-const navigate  = useNavigate()
-const location  = useLocation()
-const prefill   = location.state?.prefill || {}
-
-// Update the useState initialisations to use prefill values:
-const [patientName, setPatientName] = useState(prefill.patient_name || '')
-const [gender,      setGender]      = useState(prefill.patient_gender || 'unknown')
-const [ageYears,    setAgeYears]    = useState(
-  prefill.age_months ? String(Math.floor(prefill.age_months / 12)) : ''
-)
-const [ageMonths,   setAgeMonths]   = useState(
-  prefill.age_months ? String(prefill.age_months % 12) : ''
-)
-const [selectedFacilityId, setSelectedFacilityId] = useState(
-  prefill.facility_id || workerProfile?.facility_id || ''
-)
-
-// ── Facility type label ──────────────────────────────────────
+// ── Constants — module level, not hooks, safe here ───────────
 const FACILITY_TYPE_LABEL = {
   primary:   'Primary',
   secondary: 'Secondary',
@@ -42,7 +23,7 @@ const FACILITY_TYPE_COLOR = {
   tertiary:  'var(--color-primary)'
 }
 
-// ── Sub-components ───────────────────────────────────────────
+// ── Sub-components — module level, safe here ─────────────────
 function SectionCard({ title, hint, accent, children }) {
   return (
     <div className="nf-card" style={{
@@ -90,47 +71,53 @@ function SymptomCheckbox({ symptom, checked, onChange }) {
   )
 }
 
-// ── Main page ────────────────────────────────────────────────
+// ── Main component ────────────────────────────────────────────
 export default function NewTriage() {
-  const navigate = useNavigate()
+  // ── Hooks — ALL hooks must be here, inside the component ──
+  const navigate  = useNavigate()
+  const location  = useLocation()
+  const prefill   = location.state?.prefill || {}
+
   const { session, isOnline, workerProfile, facilities } = useAppStore()
   const setLastTriageResult = useAppStore(s => s.setLastTriageResult)
 
-  // ── Patient fields ───────────────────────────────────────
-  const [patientName,    setPatientName]  = useState('')
-  const [gender,         setGender]       = useState('unknown')
-  const [ageYears,       setAgeYears]     = useState('')
-  const [ageMonths,      setAgeMonths]    = useState('')
+  // ── Patient fields — use prefill values when coming from Re-assess
+  const [patientName,    setPatientName]  = useState(prefill.patient_name    || '')
+  const [gender,         setGender]       = useState(prefill.patient_gender  || 'unknown')
+  const [ageYears,       setAgeYears]     = useState(
+    prefill.age_months ? String(Math.floor(prefill.age_months / 12)) : ''
+  )
+  const [ageMonths,      setAgeMonths]    = useState(
+    prefill.age_months ? String(prefill.age_months % 12) : ''
+  )
   const [durationWeeks,  setDuration]     = useState('')
   const [priorTreatment, setPrior]        = useState(false)
 
-  // ── Facility — default to worker's assigned facility ────
+  // ── Facility — default to prefill → worker profile → empty
   const [selectedFacilityId, setSelectedFacilityId] = useState(
-    workerProfile?.facility_id || ''
+    prefill.facility_id || workerProfile?.facility_id || ''
   )
-  const [facilitySearch, setFacilitySearch] = useState('')
-  const [showFacilityList, setShowFacilityList] = useState(false)
+  const [facilitySearch,    setFacilitySearch]    = useState('')
+  const [showFacilityList,  setShowFacilityList]  = useState(false)
 
-  // ── Symptoms ─────────────────────────────────────────────
-  const [symptoms, setSymptoms] = useState(
+  // ── Symptoms
+  const [symptoms,   setSymptoms]   = useState(
     Object.fromEntries(SYMPTOMS.map(s => [s.key, false]))
   )
   const [submitting, setSubmitting] = useState(false)
   const [formError,  setFormError]  = useState('')
 
-  // ── Derived values ───────────────────────────────────────
+  // ── Derived values
   const totalAgeMonths = (parseInt(ageYears||0)*12) + parseInt(ageMonths||0)
   const primaryCheckedCount = SYMPTOMS.filter(s => s.isPrimary && symptoms[s.key]).length
   const anyChecked = Object.values(symptoms).some(Boolean)
   const toggleSymptom = (key) => setSymptoms(p => ({ ...p, [key]: !p[key] }))
 
-  // Selected facility object
   const selectedFacility = useMemo(
     () => facilities.find(f => f.id === selectedFacilityId) || null,
     [facilities, selectedFacilityId]
   )
 
-  // Filtered facilities for search
   const filteredFacilities = useMemo(() => {
     if (!facilitySearch.trim()) return facilities
     const q = facilitySearch.toLowerCase()
@@ -141,7 +128,7 @@ export default function NewTriage() {
     )
   }, [facilities, facilitySearch])
 
-  // ── Submit ───────────────────────────────────────────────
+  // ── Submit
   const handleSubmit = async () => {
     setFormError('')
     if (!ageYears && !ageMonths) {
@@ -168,37 +155,37 @@ export default function NewTriage() {
       const referral = generateReferral(triageResult, symptoms)
 
       const localRecord = await saveTriageLocally({
-        patient_name:    patientName.trim() || 'Patient',
-        patient_gender:  gender,
-        age_months:      totalAgeMonths,
-        symptoms:        symptoms,
-        duration_weeks:  parseInt(durationWeeks),
-        prior_treatment: priorTreatment,
-        submitted_by:    workerProfile?.id       || null,
-        facility_id:     selectedFacilityId      || workerProfile?.facility_id || null,
-        facility_name:   selectedFacility?.name  || null,
-        risk_level:      triageResult.risk_level,
-        risk_score:      triageResult.risk_score,
-        score_breakdown: triageResult.score_breakdown,
-        explanation:     triageResult.explanation,
-        referral_action: referral.action,
-        referral_label:  referral.label,
+        patient_name:       patientName.trim() || 'Patient',
+        patient_gender:     gender,
+        age_months:         totalAgeMonths,
+        symptoms:           symptoms,
+        duration_weeks:     parseInt(durationWeeks),
+        prior_treatment:    priorTreatment,
+        submitted_by:       workerProfile?.id      || null,
+        facility_id:        selectedFacilityId     || workerProfile?.facility_id || null,
+        facility_name:      selectedFacility?.name || null,
+        risk_level:         triageResult.risk_level,
+        risk_score:         triageResult.risk_score,
+        score_breakdown:    triageResult.score_breakdown,
+        explanation:        triageResult.explanation,
+        referral_action:    referral.action,
+        referral_label:     referral.label,
         referral_timeframe: referral.timeframe,
-        primary_count:   triageResult.primary_count,
-        override_applied: triageResult.override_applied
+        primary_count:      triageResult.primary_count,
+        override_applied:   triageResult.override_applied
       })
 
       setLastTriageResult({
         ...triageResult,
         referral,
-        local_id:        localRecord.local_id,
-        patient_name:    patientName.trim() || 'Patient',
-        patient_gender:  gender,
-        age_months:      totalAgeMonths,
-        assessed_at:     localRecord.submitted_at,
+        local_id:       localRecord.local_id,
+        patient_name:   patientName.trim() || 'Patient',
+        patient_gender: gender,
+        age_months:     totalAgeMonths,
+        assessed_at:    localRecord.submitted_at,
         symptoms,
-        facility_name:   selectedFacility?.name  || null,
-        facility_type:   selectedFacility?.type  || null,
+        facility_name:  selectedFacility?.name || null,
+        facility_type:  selectedFacility?.type || null,
       })
 
       if (isOnline) syncPendingRecords(session?.access_token).catch(console.warn)
@@ -210,12 +197,12 @@ export default function NewTriage() {
     }
   }
 
+  // ── Render
   return (
     <div className="nf-page">
       <Header />
       <main className="nf-main">
 
-        {/* Back link */}
         <button onClick={() => navigate('/')} style={{
           display:'flex', alignItems:'center', gap:4,
           background:'none', border:'none', cursor:'pointer',
@@ -228,29 +215,25 @@ export default function NewTriage() {
         <div style={{ marginBottom:20 }}>
           <h1 style={{ margin:'0 0 4px', fontSize:'1.25rem', fontWeight:700,
                        color:'var(--color-text-primary)', letterSpacing:'-0.01em' }}>
-            New Triage Assessment
+            {prefill.patient_name ? `Re-assess: ${prefill.patient_name}` : 'New Triage Assessment'}
           </h1>
           <p style={{ margin:0, fontSize:'0.875rem', color:'var(--color-text-muted)' }}>
             Answer each question based on what the guardian reports.
           </p>
         </div>
 
-        {/* ── Assessing Facility ───────────────────────── */}
+        {/* Assessing facility */}
         <SectionCard title="Assessing facility"
           hint="The facility where this assessment is taking place">
-          {/* Selected facility display */}
           <div
             onClick={() => setShowFacilityList(v => !v)}
             style={{
               display:'flex', alignItems:'center', justifyContent:'space-between',
               padding:'10px 14px',
-              border:`1.5px solid ${selectedFacility
-                ? 'var(--color-accent)'
-                : 'var(--color-border-strong)'}`,
+              border:`1.5px solid ${selectedFacility ? 'var(--color-accent)' : 'var(--color-border-strong)'}`,
               borderRadius:'var(--radius-md)',
               background:'var(--color-surface)',
-              cursor:'pointer',
-              transition:'border-color 150ms'
+              cursor:'pointer', transition:'border-color 150ms'
             }}
           >
             <div style={{ display:'flex', alignItems:'center', gap:10 }}>
@@ -267,41 +250,31 @@ export default function NewTriage() {
                   <p style={{ margin:'2px 0 0', fontSize:'0.8125rem',
                               color:'var(--color-text-muted)' }}>
                     {selectedFacility.location} ·{' '}
-                    <span style={{
-                      color: FACILITY_TYPE_COLOR[selectedFacility.type],
-                      fontWeight:600
-                    }}>
+                    <span style={{ color: FACILITY_TYPE_COLOR[selectedFacility.type], fontWeight:600 }}>
                       {FACILITY_TYPE_LABEL[selectedFacility.type]}
                     </span>
                   </p>
                 </div>
               ) : (
-                <p style={{ margin:0, fontSize:'0.9375rem',
-                            color:'var(--color-text-muted)' }}>
+                <p style={{ margin:0, fontSize:'0.9375rem', color:'var(--color-text-muted)' }}>
                   Select a facility…
                 </p>
               )}
             </div>
             <span style={{
               fontSize:'0.75rem', color:'var(--color-text-muted)',
-              transition:'transform 200ms',
-              display:'inline-block',
+              display:'inline-block', transition:'transform 200ms',
               transform: showFacilityList ? 'rotate(180deg)' : 'rotate(0deg)'
             }}>▼</span>
           </div>
 
-          {/* Dropdown list */}
           {showFacilityList && (
             <div style={{
-              marginTop:8,
-              border:'1px solid var(--color-border)',
-              borderRadius:'var(--radius-md)',
-              overflow:'hidden',
+              marginTop:8, border:'1px solid var(--color-border)',
+              borderRadius:'var(--radius-md)', overflow:'hidden',
               background:'var(--color-surface)'
             }}>
-              {/* Search */}
-              <div style={{ padding:'8px 10px',
-                            borderBottom:'1px solid var(--color-border)' }}>
+              <div style={{ padding:'8px 10px', borderBottom:'1px solid var(--color-border)' }}>
                 <input
                   className="nf-input"
                   type="text"
@@ -312,8 +285,6 @@ export default function NewTriage() {
                   style={{ margin:0 }}
                 />
               </div>
-
-              {/* Facility list */}
               <div style={{ maxHeight:240, overflowY:'auto' }}>
                 {filteredFacilities.length === 0 && (
                   <p style={{ padding:'12px 14px', fontSize:'0.875rem',
@@ -334,8 +305,7 @@ export default function NewTriage() {
                       borderBottom:'1px solid var(--color-border)',
                       cursor:'pointer',
                       background: f.id === selectedFacilityId
-                        ? 'var(--color-primary-light)'
-                        : 'transparent',
+                        ? 'var(--color-primary-light)' : 'transparent',
                       transition:'background 100ms'
                     }}
                   >
@@ -367,7 +337,7 @@ export default function NewTriage() {
           )}
         </SectionCard>
 
-        {/* ── Patient name ─────────────────────────────── */}
+        {/* Patient name */}
         <SectionCard title="Patient name" hint="Optional — used on referral letter" accent>
           <div style={{ position:'relative' }}>
             <User size={15} style={{
@@ -386,7 +356,7 @@ export default function NewTriage() {
           </div>
         </SectionCard>
 
-        {/* ── Gender ───────────────────────────────────── */}
+        {/* Gender */}
         <SectionCard title="Patient gender">
           <div style={{ display:'flex', gap:8 }}>
             {['Male', 'Female', 'Unknown'].map(option => (
@@ -397,17 +367,13 @@ export default function NewTriage() {
                 style={{
                   flex:1, padding:'10px 8px',
                   border:`1.5px solid ${gender === option.toLowerCase()
-                    ? 'var(--color-accent)'
-                    : 'var(--color-border-strong)'}`,
+                    ? 'var(--color-accent)' : 'var(--color-border-strong)'}`,
                   borderRadius:'var(--radius-md)',
                   background: gender === option.toLowerCase()
-                    ? 'var(--color-primary-light)'
-                    : 'var(--color-surface)',
+                    ? 'var(--color-primary-light)' : 'var(--color-surface)',
                   color: gender === option.toLowerCase()
-                    ? 'var(--color-primary)'
-                    : 'var(--color-text-secondary)',
-                  fontFamily:'var(--font-sans)',
-                  fontSize:'0.875rem',
+                    ? 'var(--color-primary)' : 'var(--color-text-secondary)',
+                  fontFamily:'var(--font-sans)', fontSize:'0.875rem',
                   fontWeight: gender === option.toLowerCase() ? 700 : 400,
                   cursor:'pointer', transition:'all 120ms'
                 }}
@@ -418,7 +384,7 @@ export default function NewTriage() {
           </div>
         </SectionCard>
 
-        {/* ── Age ──────────────────────────────────────── */}
+        {/* Age */}
         <SectionCard title="Patient age">
           <div style={{ display:'flex', gap:12 }}>
             <div style={{ flex:1 }}>
@@ -433,14 +399,13 @@ export default function NewTriage() {
             </div>
           </div>
           {totalAgeMonths > 0 && (
-            <p style={{ margin:'8px 0 0', fontSize:'0.8125rem',
-                        color:'var(--color-text-muted)' }}>
+            <p style={{ margin:'8px 0 0', fontSize:'0.8125rem', color:'var(--color-text-muted)' }}>
               = {totalAgeMonths} months total
             </p>
           )}
         </SectionCard>
 
-        {/* ── Duration ─────────────────────────────────── */}
+        {/* Duration */}
         <SectionCard
           title="How long have symptoms been present?"
           hint='Ask the guardian: "How many weeks has your child had these problems?"'
@@ -449,14 +414,13 @@ export default function NewTriage() {
             <input className="nf-input" type="number" min="0" max="104"
               value={durationWeeks} onChange={e => setDuration(e.target.value)}
               placeholder="e.g. 3" style={{ maxWidth:100 }} />
-            <span style={{ fontSize:'0.9375rem', color:'var(--color-text-secondary)',
-                           fontWeight:500 }}>
+            <span style={{ fontSize:'0.9375rem', color:'var(--color-text-secondary)', fontWeight:500 }}>
               weeks
             </span>
           </div>
         </SectionCard>
 
-        {/* ── Symptoms ─────────────────────────────────── */}
+        {/* Symptoms */}
         <SectionCard
           title="Symptoms present"
           hint="Check all symptoms the child currently has."
@@ -482,7 +446,7 @@ export default function NewTriage() {
           </div>
         </SectionCard>
 
-        {/* ── Prior treatment ───────────────────────────── */}
+        {/* Prior treatment */}
         <SectionCard title="Prior treatment">
           <label className="nf-checkbox-row" style={{ border:'none', padding:0, background:'none' }}>
             <div className={`nf-checkbox-box ${priorTreatment ? 'is-checked' : ''}`}
@@ -502,8 +466,7 @@ export default function NewTriage() {
                           color:'var(--color-text-primary)' }}>
                 Patient has received prior treatment
               </p>
-              <p style={{ margin:'2px 0 0', fontSize:'0.8125rem',
-                          color:'var(--color-text-muted)' }}>
+              <p style={{ margin:'2px 0 0', fontSize:'0.8125rem', color:'var(--color-text-muted)' }}>
                 Any previous hospital visit, medication, or cancer treatment
               </p>
             </div>
