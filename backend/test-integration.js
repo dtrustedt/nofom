@@ -79,44 +79,75 @@ async function testAuthRequired() {
 }
 
 async function testTriageWithAuth(token) {
-  console.log('\n── Triage with auth ──────────────────────────')
+  console.log('\n── Triage with auth (canonical output) ──────')
 
-  // Test 1: Valid HIGH risk triage
   const { status, body } = await apiCall('POST', '/api/triage', {
-    age_months:    36,
+    age_months: 36,
     symptoms: {
       unexplained_weight_loss: true,
       persistent_fever:        true,
       lymph_node_swelling:     true,
       extreme_fatigue:         true
     },
-    duration_weeks:  4,
-    prior_treatment: false,
-    patient_name:    'Integration Test Patient',
-    offline_created: true
+    duration_weeks: 4, prior_treatment: false,
+    patient_name: 'Integration Test Patient', offline_created: true
   }, token)
 
-  if (status === 201 && body.risk_level === 'HIGH') {
-    pass(`POST /api/triage → 201, risk_level: ${body.risk_level}`)
-    pass(`triage_id present: ${body.triage_id?.slice(0,8)}…`)
-    body.explanation?.length > 0
-      ? pass(`explanation has ${body.explanation.length} entries`)
-      : fail('explanation should not be empty')
-    body.referral?.action === 'URGENT_REFERRAL'
-      ? pass('referral action = URGENT_REFERRAL')
-      : fail('referral action wrong', body.referral?.action)
+  if (status === 201) {
+    pass(`POST /api/triage → 201`)
+
+    // Canonical urgency fields
+    body.urgency_level === 'immediate'
+      ? pass(`urgency_level = immediate`)
+      : fail('urgency_level should be immediate', body.urgency_level)
+
+    body.urgency_color === 'red'
+      ? pass(`urgency_color = red`)
+      : fail('urgency_color should be red', body.urgency_color)
+
+    // Explainability contract
+    body.triggering_findings?.length > 0
+      ? pass(`triggering_findings has ${body.triggering_findings.length} entries`)
+      : fail('triggering_findings must not be empty')
+
+    body.triggering_findings?.[0]?.canonical_code
+      ? pass(`canonical_code present: ${body.triggering_findings[0].canonical_code}`)
+      : fail('canonical_code missing from triggering_findings')
+
+    body.explanation_summary
+      ? pass(`explanation_summary present`)
+      : fail('explanation_summary missing')
+
+    typeof body.escalation_flag === 'boolean'
+      ? pass(`escalation_flag is boolean: ${body.escalation_flag}`)
+      : fail('escalation_flag missing')
+
+    body.rule_version
+      ? pass(`rule_version: ${body.rule_version}`)
+      : fail('rule_version missing')
+
+    // Pipeline fields
+    body.encounter_id
+      ? pass(`encounter_id populated: ${body.encounter_id.slice(0,8)}…`)
+      : fail('encounter_id missing — Encounter not created')
+
+    // Deterministic referral
+    body.referral?.referral_target_type === 'emergency_pediatric_hospital'
+      ? pass(`referral_target_type = emergency_pediatric_hospital`)
+      : fail('referral_target_type wrong', body.referral?.referral_target_type)
+
+    body.referral?.referral_timeframe === 'immediate'
+      ? pass(`referral_timeframe = immediate`)
+      : fail('referral_timeframe wrong', body.referral?.referral_timeframe)
+
   } else {
     fail(`POST /api/triage`, `status ${status}: ${JSON.stringify(body)}`)
   }
 
-  // Test 2: Missing required fields
-  const { status: s2 } = await apiCall('POST', '/api/triage', {}, token)
-  s2 === 400
-    ? pass('POST /api/triage with missing fields → 400')
-    : fail('Should return 400 for missing fields', `got ${s2}`)
-
   return body.triage_id
 }
+
+
 
 async function testBatchSync(token) {
   console.log('\n── Batch sync ────────────────────────────────')

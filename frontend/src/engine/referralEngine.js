@@ -1,122 +1,127 @@
 // frontend/src/engine/referralEngine.js
 // =============================================================
-// NOFOM REFERRAL ENGINE
+// NOFOM REFERRAL DECISION ENGINE
 // =============================================================
-// Accepts a triage result and returns a concrete referral action.
-// Also a pure function — runs offline, no network needed.
+// Referral is DETERMINISTIC from urgency_level.
+// No separate logic. No UI override without audit trail.
+//
+// Mapping (per Engineering Review — non-negotiable):
+//   immediate → emergency_pediatric_hospital
+//   priority  → pediatric_oncohematology_unit (48–72h)
+//   scheduled → diagnostic_center (within 2 weeks)
 // =============================================================
 
-/**
- * REFERRAL ACTION REGISTRY
- * 
- * Actions are matched by risk_level.
- * Special overrides apply for specific symptom combinations.
- */
-const REFERRAL_ACTIONS = {
-  HIGH: {
-    action:        'URGENT_REFERRAL',
-    label:         'Refer to Pediatric Oncology Unit',
-    timeframe:     'Within 24 hours — do not delay',
-    facility_tier: 'Tertiary',
-    color:         'danger',
+// ── Deterministic referral map ────────────────────────────────
+// Keyed by urgency_level from runTriage() output
+const REFERRAL_MAP = {
+  immediate: {
+    action:               'URGENT_REFERRAL',
+    label:                'Emergency Referral — Pediatric Hospital',
+    referral_target_type: 'emergency_pediatric_hospital',
+    referral_timeframe:   'immediate',
+    timeframe_display:    'Within 24 hours — do not delay',
+    facility_tier:        'Tertiary',
+    color:                'danger',
     instructions: [
       'Prepare a written referral letter with all symptom details and duration.',
       'Do not start treatment before specialist evaluation.',
-      'Inform the guardian this referral is urgent.',
-      'Call the receiving facility if possible before sending the patient.',
+      'Inform the guardian this referral is urgent — same day if possible.',
+      'Call the receiving facility before sending the patient.',
       'Record the referral in this app before the patient leaves.'
     ]
   },
-  MEDIUM: {
-    action:        'SCHEDULED_REFERRAL',
-    label:         'Refer to District/Secondary Hospital',
-    timeframe:     'Within 7 days',
-    facility_tier: 'Secondary',
-    color:         'warning',
+  priority: {
+    action:               'PRIORITY_REFERRAL',
+    label:                'Specialist Referral — Pediatric Oncology Unit',
+    referral_target_type: 'pediatric_oncohematology_unit',
+    referral_timeframe:   '48_72_hours',
+    timeframe_display:    'Within 48–72 hours',
+    facility_tier:        'Secondary / Tertiary',
+    color:                'warning',
     instructions: [
-      'Complete a referral form with symptom history.',
-      'Advise guardian on warning signs that would require immediate emergency visit.',
-      'Schedule a follow-up if the patient does not attend referral.',
+      'Complete a referral form with full symptom history.',
+      'Advise guardian on warning signs requiring emergency visit.',
+      'Schedule a follow-up if the patient does not attend the referral.',
+      'Request CBC and basic labs at referral facility on arrival.',
       'Record this assessment in the app.'
     ]
   },
-  LOW: {
-    action:        'MONITOR_AND_EDUCATE',
-    label:         'Monitor and Educate',
-    timeframe:     'Follow up within 4 weeks',
-    facility_tier: 'Primary',
-    color:         'success',
+  scheduled: {
+    action:               'SCHEDULED_REFERRAL',
+    label:                'Diagnostic Review — Outpatient',
+    referral_target_type: 'diagnostic_center',
+    referral_timeframe:   'within_2_weeks',
+    timeframe_display:    'Within 2 weeks',
+    facility_tier:        'Primary / Secondary',
+    color:                'success',
     instructions: [
       'Educate the guardian on early warning signs of childhood cancer.',
-      'Advise them to return immediately if new symptoms appear or current ones worsen.',
-      'Schedule a routine follow-up visit.',
+      'Advise them to return immediately if symptoms worsen or new ones appear.',
+      'Schedule a diagnostic follow-up visit within 2 weeks.',
       'Document this assessment in the app.'
     ]
   }
 }
 
-/**
- * SPECIAL CASE OVERRIDES
- * 
- * Certain symptom combinations require a specific referral note
- * regardless of risk level. These are appended to the base referral.
- */
+// ── Special case clinical warnings ───────────────────────────
+// Appended to base referral when specific symptoms present
 const SPECIAL_CASE_NOTES = [
   {
-    condition: (symptoms) => symptoms.vision_changes,
+    condition: (s) => s.vision_changes,
     note: '⚠️ LEUKOCORIA/VISION CHANGE: Refer urgently to ophthalmology. ' +
-          'Retinoblastoma is highly treatable when caught early.'
+          'Retinoblastoma is highly treatable when caught early. ' +
+          'Canonical: SIGN_LEUKOCORIA'
   },
   {
-    condition: (symptoms) => symptoms.abdominal_mass,
-    note: '⚠️ ABDOMINAL MASS: Do NOT palpate repeatedly — risk of tumor rupture. ' +
-          'Request urgent abdominal ultrasound at referral facility.'
+    condition: (s) => s.abdominal_mass,
+    note: '⚠️ ABDOMINAL MASS (SIGN_MASS_ABDOMINAL): Do NOT palpate repeatedly — ' +
+          'risk of tumour rupture. Request urgent abdominal ultrasound on arrival.'
   },
   {
-    condition: (symptoms) => symptoms.persistent_headache && symptoms.vision_changes,
+    condition: (s) => s.persistent_headache && s.vision_changes,
     note: '⚠️ CNS INVOLVEMENT POSSIBLE: Headache + vision changes may indicate ' +
           'raised intracranial pressure. Avoid lumbar puncture before imaging.'
   },
   {
-    condition: (symptoms) => symptoms.unusual_bruising && symptoms.extreme_fatigue,
-    note: '⚠️ LEUKEMIA SIGNS: Bruising + fatigue combination warrants urgent CBC. ' +
-          'Request full blood count at referral facility on arrival.'
+    condition: (s) => s.unusual_bruising && s.extreme_fatigue,
+    note: '⚠️ LEUKEMIA PATTERN: SIGN_BRUISING_UNEXPLAINED + SYM_FATIGUE_MARKED — ' +
+          'warrants urgent CBC. Request full blood count on arrival.'
   }
 ]
 
 /**
- * generateReferral()
- * 
- * @param {Object} triageResult  - Output from runTriage()
- * @param {Object} symptoms      - Original symptom flags (for special cases)
- * 
+ * generateReferral
+ *
+ * Deterministic: urgency_level → referral action.
+ * No separate logic path. Override only via audit trail.
+ *
+ * @param {Object} triageResult  — output from runTriage()
+ * @param {Object} symptoms      — original symptom flags
  * @returns {Object} referral
- * @returns {string} referral.action          - Machine-readable action key
- * @returns {string} referral.label           - Human label for the action
- * @returns {string} referral.timeframe       - When to act
- * @returns {string} referral.facility_tier   - Where to send
- * @returns {string} referral.color           - UI color key (danger/warning/success)
- * @returns {string[]} referral.instructions  - Step-by-step instructions
- * @returns {string[]} referral.special_notes - Any special clinical warnings
  */
 export function generateReferral(triageResult, symptoms = {}) {
-  const { risk_level } = triageResult
+  const urgencyLevel = triageResult.urgency_level
 
-  // Get base referral for this risk level
-  const base = REFERRAL_ACTIONS[risk_level] || REFERRAL_ACTIONS.LOW
+  // Look up deterministic referral — fallback to scheduled if unknown
+  const base = REFERRAL_MAP[urgencyLevel] || REFERRAL_MAP.scheduled
 
-  // Collect any special-case notes
+  // Collect special case notes
   const special_notes = SPECIAL_CASE_NOTES
     .filter(sc => sc.condition(symptoms))
     .map(sc => sc.note)
 
   return {
-    action:         base.action,
-    label:          base.label,
-    timeframe:      base.timeframe,
-    facility_tier:  base.facility_tier,
-    color:          base.color,
-    instructions:   base.instructions,
-    special_notes
+    action:               base.action,
+    label:                base.label,
+    referral_target_type: base.referral_target_type,
+    referral_timeframe:   base.referral_timeframe,
+    timeframe_display:    base.timeframe_display,
+    facility_tier:        base.facility_tier,
+    color:                base.color,
+    instructions:         base.instructions,
+    special_notes,
+    // Pass through urgency for UI display
+    urgency_level:        urgencyLevel,
+    urgency_color:        triageResult.urgency_color
   }
 }

@@ -1,144 +1,173 @@
 // frontend/src/engine/triageRules.js
 // =============================================================
-// NOFOM TRIAGE RULE ENGINE
-// =============================================================
-// Pure function — no network, no database, no side effects.
-// Runs identically in browser (offline) and on Node.js server.
+// NOFOM TRIAGE RULE ENGINE v1.0.0
+// Compliant with Nofom Clinical Data Schema v1
 //
-// USAGE:
-//   import { runTriage } from './triageRules'
-//   const result = runTriage(input)
-//
-// INPUT shape: see runTriage() JSDoc below
-// OUTPUT shape: see RETURN section of runTriage() JSDoc
+// Output contract (non-negotiable per Engineering Review):
+//   urgency_level        — immediate | priority | scheduled
+//   urgency_color        — red | yellow | green
+//   triggering_findings  — canonical codes of present symptoms
+//   explanation_summary  — single human-readable summary string
+//   explanation          — array of per-finding explanations
+//   escalation_flag      — true if multiple low-grade findings elevated
+//   override_applied     — true if red-flag threshold forced urgency up
+//   rule_version         — triage logic version string
+//   risk_score           — numeric score (for display/debugging)
 // =============================================================
 
 import {
   SYMPTOMS,
+  URGENCY_LEVELS,
   DURATION_MULTIPLIERS,
   AGE_MODIFIER,
-  RISK_THRESHOLDS,
-  PRIMARY_SYMPTOM_HIGH_OVERRIDE,
-  MAX_RAW_SCORE
-} from '../shared/triageSchema.js'
+  RED_FLAG_OVERRIDE_THRESHOLD,
+  MAX_RAW_SCORE,
+  SCHEMA_VERSION
+} from '../../shared/triageSchema.js'
 
-// =============================================================
-// PRIVATE HELPER: Get duration multiplier for given week count
-// =============================================================
+// ── Private helpers ───────────────────────────────────────────
+
 function getDurationMultiplier(durationWeeks) {
   const weeks = Number(durationWeeks) || 0
   for (const band of DURATION_MULTIPLIERS) {
-    if (weeks >= band.minWeeks && weeks < band.maxWeeks) {
-      return band
-    }
+    if (weeks >= band.minWeeks && weeks < band.maxWeeks) return band
   }
-  // Fallback — should never reach here given the 0–999 range
   return DURATION_MULTIPLIERS[DURATION_MULTIPLIERS.length - 1]
 }
 
-// =============================================================
-// PRIVATE HELPER: Classify risk level from final score
-// Also applies the primary-symptom override rule
-// =============================================================
-function classifyRisk(finalScore, primarySymptomsCount) {
-  // Hard safety override: 2+ primary symptoms = always HIGH
-  if (primarySymptomsCount >= PRIMARY_SYMPTOM_HIGH_OVERRIDE) {
-    return RISK_THRESHOLDS.HIGH.label
+function classifyUrgency(finalScore, redFlagCount) {
+  // Red flag override: N+ red-flag symptoms → immediate regardless of score
+  if (redFlagCount >= RED_FLAG_OVERRIDE_THRESHOLD) {
+    return URGENCY_LEVELS.RED
   }
-
-  if (finalScore >= RISK_THRESHOLDS.HIGH.min)   return RISK_THRESHOLDS.HIGH.label
-  if (finalScore >= RISK_THRESHOLDS.MEDIUM.min) return RISK_THRESHOLDS.MEDIUM.label
-  return RISK_THRESHOLDS.LOW.label
+  if (finalScore >= URGENCY_LEVELS.RED.score_threshold)    return URGENCY_LEVELS.RED
+  if (finalScore >= URGENCY_LEVELS.YELLOW.score_threshold) return URGENCY_LEVELS.YELLOW
+  return URGENCY_LEVELS.GREEN
 }
 
-// =============================================================
-// MAIN EXPORT: runTriage()
-// =============================================================
+// ── Build triggering_findings array ──────────────────────────
+// Returns array of objects with canonical_code + label
+// Used for auditability and schema compliance
+function buildTriggeringFindings(symptoms) {
+  return SYMPTOMS
+    .filter(s => Boolean(symptoms[s.key]))
+    .map(s => ({
+      canonical_code:   s.canonical_code,
+      label:            s.label,
+      body_system:      s.body_system,
+      observation_type: s.observation_type,
+      urgency_weight:   s.urgency_weight,
+      is_red_flag:      s.is_red_flag
+    }))
+}
+
+// ── Build explanation_summary (single string) ─────────────────
+function buildExplanationSummary(triggeringFindings, urgencyLevel, overrideApplied, escalationFlag) {
+  const count = triggeringFindings.length
+
+  if (count === 0) {
+    return 'No high-suspicion findings reported. Routine monitoring advised.'
+  }
+
+  const redFlags = triggeringFindings.filter(f => f.is_red_flag)
+  const systems  = [...new Set(triggeringFindings.map(f => f.body_system))]
+
+  let summary = `${count} clinical finding${count !== 1 ? 's' : ''} identified across `
+  summary    += `${systems.length} body system${systems.length !== 1 ? 's' : ''}`
+  summary    += ` (${systems.join(', ')}).`
+
+  if (overrideApplied) {
+    summary += ` ${redFlags.length} red-flag indicator${redFlags.length !== 1 ? 's' : ''} ` +
+               `present simultaneously — urgency escalated to IMMEDIATE per protocol.`
+  } else if (escalationFlag) {
+    summary += ` Multiple lower-severity findings together justify elevated urgency classification.`
+  }
+
+  summary += ` Urgency classification: ${urgencyLevel.level.toUpperCase()}.`
+  return summary
+}
+
+// ── Main export: runTriage() ──────────────────────────────────
+
 /**
- * Runs the Nofom triage rule engine.
+ * runTriage — canonical triage rule engine
  *
  * @param {Object} input
- * @param {number}  input.age_months       - Patient age in months (0–216)
- * @param {Object}  input.symptoms         - Key/boolean map of symptom flags
- *                                           (keys match SYMPTOMS[].key)
- * @param {number}  input.duration_weeks   - How long symptoms have been present
- * @param {boolean} input.prior_treatment  - Has the patient received prior treatment
+ * @param {number}  input.age_months
+ * @param {Object}  input.symptoms        — key/boolean map
+ * @param {number}  input.duration_weeks
+ * @param {boolean} input.prior_treatment
  *
- * @returns {Object} result
- * @returns {string}  result.risk_level         - 'LOW' | 'MEDIUM' | 'HIGH'
- * @returns {number}  result.risk_score          - Final integer score (0–~200)
- * @returns {number}  result.raw_score           - Score before duration multiplier
- * @returns {Object}  result.score_breakdown     - Per-symptom score contributions
- * @returns {string}  result.duration_label      - Human-readable duration band
- * @returns {number}  result.duration_multiplier - Multiplier applied to raw score
- * @returns {Object}  result.age_modifier        - Age score and label
- * @returns {string[]} result.explanation        - Ordered list of explanations
- * @returns {number}  result.primary_count       - How many primary symptoms present
- * @returns {boolean} result.override_applied    - Whether the primary override fired
+ * @returns {Object} Full canonical triage output
  */
 export function runTriage(input) {
-  // ── 1. Input validation ──────────────────────────────────────
-  const ageMonths     = Number(input.age_months)    || 0
+  // ── Validation ───────────────────────────────────────────
+  const ageMonths     = Number(input.age_months)     || 0
   const durationWeeks = Number(input.duration_weeks) || 0
-  const symptoms      = input.symptoms              || {}
+  const symptoms      = input.symptoms               || {}
 
   if (ageMonths < 0 || ageMonths > 216) {
     throw new Error(`Invalid age_months: ${ageMonths}. Must be 0–216.`)
   }
 
-  // ── 2. Score each symptom ────────────────────────────────────
+  // ── Score each symptom ───────────────────────────────────
   const score_breakdown = {}
   const explanation     = []
   let   rawScore        = 0
-  let   primaryCount    = 0
+  let   redFlagCount    = 0
 
   for (const symptom of SYMPTOMS) {
     const isPresent = Boolean(symptoms[symptom.key])
-
     if (isPresent) {
-      score_breakdown[symptom.key] = symptom.weight
-      rawScore += symptom.weight
+      score_breakdown[symptom.canonical_code] = symptom.urgency_weight
+      rawScore += symptom.urgency_weight
       explanation.push(symptom.explanation)
-
-      if (symptom.isPrimary) primaryCount++
+      if (symptom.is_red_flag) redFlagCount++
     } else {
-      score_breakdown[symptom.key] = 0
+      score_breakdown[symptom.canonical_code] = 0
     }
   }
 
-  // ── 3. Apply age modifier ────────────────────────────────────
+  // ── Age modifier ─────────────────────────────────────────
   const ageModifier = AGE_MODIFIER(ageMonths)
   rawScore += ageModifier.score
 
-  // ── 4. Apply duration multiplier ────────────────────────────
+  // ── Duration multiplier ───────────────────────────────────
   const durationBand = getDurationMultiplier(durationWeeks)
   const finalScore   = Math.round(rawScore * durationBand.multiplier)
 
-  // ── 5. Classify risk ─────────────────────────────────────────
-  const riskLevel       = classifyRisk(finalScore, primaryCount)
+  // ── Urgency classification ────────────────────────────────
+  const urgencyLevel = classifyUrgency(finalScore, redFlagCount)
+
   const overrideApplied = (
-    primaryCount >= PRIMARY_SYMPTOM_HIGH_OVERRIDE &&
-    finalScore < RISK_THRESHOLDS.HIGH.min
+    redFlagCount >= RED_FLAG_OVERRIDE_THRESHOLD &&
+    finalScore < URGENCY_LEVELS.RED.score_threshold
   )
 
-  // ── 6. Add override explanation if it fired ──────────────────
-  if (overrideApplied) {
-    explanation.unshift(
-      `Risk elevated to HIGH because ${primaryCount} primary cancer indicators ` +
-      `are present simultaneously. This combination requires urgent evaluation ` +
-      `regardless of individual symptom scores.`
-    )
-  }
+  // Multiple low-grade findings escalation
+  // (non-red-flag symptoms together justify higher concern)
+  const nonRedFlagPresent = SYMPTOMS
+    .filter(s => !s.is_red_flag && Boolean(symptoms[s.key]))
+    .length
+  const escalationFlag = !overrideApplied && nonRedFlagPresent >= 2 &&
+    urgencyLevel.level !== 'scheduled'
 
-  // ── 7. Add prior treatment note ──────────────────────────────
+  // ── Triggering findings (canonical codes) ─────────────────
+  const triggeringFindings = buildTriggeringFindings(symptoms)
+
+  // ── Explanation summary (single string) ───────────────────
+  const explanationSummary = buildExplanationSummary(
+    triggeringFindings, urgencyLevel, overrideApplied, escalationFlag
+  )
+
+  // ── Prior treatment note ──────────────────────────────────
   if (input.prior_treatment) {
     explanation.push(
-      'Patient has received prior treatment. This context should be communicated ' +
-      'to the receiving facility at referral.'
+      'Patient has received prior treatment. This context must be ' +
+      'communicated to the receiving facility at referral.'
     )
   }
 
-  // ── 8. If no symptoms, explain that too ─────────────────────
   if (explanation.length === 0) {
     explanation.push(
       'No high-risk symptoms reported at this time. Continue monitoring. ' +
@@ -146,18 +175,34 @@ export function runTriage(input) {
     )
   }
 
-  // ── 9. Return full result ────────────────────────────────────
+  // ── Return full canonical output ──────────────────────────
   return {
-    risk_level:          riskLevel,
-    risk_score:          finalScore,
-    raw_score:           rawScore,
+    // Canonical urgency fields (schema section 5.5)
+    urgency_level:        urgencyLevel.level,   // immediate | priority | scheduled
+    urgency_color:        urgencyLevel.color,   // red | yellow | green
+
+    // Explainability (non-negotiable per Engineering Review)
+    triggering_findings:  triggeringFindings,
+    explanation_summary:  explanationSummary,
+    explanation,                                // per-finding detail array
+    escalation_flag:      escalationFlag,
+    override_applied:     overrideApplied,
+    multiple_low_grade_escalation: escalationFlag,
+
+    // Scoring detail (for UI display and audit)
+    risk_score:           finalScore,
+    raw_score:            rawScore,
     score_breakdown,
-    duration_label:      durationBand.label,
-    duration_multiplier: durationBand.multiplier,
-    age_modifier:        ageModifier,
-    explanation,
-    primary_count:       primaryCount,
-    override_applied:    overrideApplied,
-    max_possible_score:  Math.round(MAX_RAW_SCORE * 1.5) // for UI progress bar
+    duration_label:       durationBand.label,
+    duration_multiplier:  durationBand.multiplier,
+    age_modifier:         ageModifier,
+    red_flag_count:       redFlagCount,
+    max_possible_score:   Math.round(MAX_RAW_SCORE * 1.5),
+
+    // Versioning (required for audit trail)
+    rule_version:         SCHEMA_VERSION.triage_logic_version,
+    schema_version:       SCHEMA_VERSION.schema_version,
+    assessment_mode:      'rule_based',
+    assessed_by_role:     'community_health_worker'
   }
 }
