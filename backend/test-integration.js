@@ -106,7 +106,7 @@ async function testTriageWithAuth(token) {
       : fail('urgency_color should be red', body.urgency_color)
 
     // Explainability contract
-    body.triggering_findings?.length > 0
+      body.triggering_findings?.length > 0
       ? pass(`triggering_findings has ${body.triggering_findings.length} entries`)
       : fail('triggering_findings must not be empty')
 
