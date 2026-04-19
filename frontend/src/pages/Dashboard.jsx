@@ -9,17 +9,18 @@ import {
   ClipboardList, Building2
 } from 'lucide-react'
 
-const RISK_PILL = {
-  HIGH:   { bg:'var(--color-high)',   color:'white' },
-  MEDIUM: { bg:'var(--color-medium)', color:'white' },
-  LOW:    { bg:'var(--color-low)',    color:'white' }
+const RISK_DISPLAY = {
+  HIGH:      { bg:'var(--color-high)',   color:'white', label:'HIGH' },
+  MEDIUM:    { bg:'var(--color-medium)', color:'white', label:'MEDIUM' },
+  LOW:       { bg:'var(--color-low)',    color:'white', label:'LOW' },
+  immediate: { bg:'var(--color-high)',   color:'white', label:'HIGH' },
+  priority:  { bg:'var(--color-medium)', color:'white', label:'MEDIUM' },
+  scheduled: { bg:'var(--color-low)',    color:'white', label:'LOW' },
 }
 
-function RiskPill({ level }) {
-  const s = RISK_PILL[level] || {
-    bg:'var(--color-border)',
-    color:'var(--color-text-secondary)'
-  }
+function RiskPill({ record }) {
+  const key = record.risk_level || record.urgency_level || 'LOW'
+  const s   = RISK_DISPLAY[key] || RISK_DISPLAY.LOW
   return (
     <span style={{
       background: s.bg, color: s.color,
@@ -27,7 +28,7 @@ function RiskPill({ level }) {
       padding: '3px 9px', borderRadius: '999px',
       letterSpacing: '0.05em', textTransform: 'uppercase'
     }}>
-      {level}
+      {s.label}
     </span>
   )
 }
@@ -151,7 +152,7 @@ export default function Dashboard() {
                 <div style={{ flex:1, minWidth:0 }}>
                   <div style={{ display:'flex', alignItems:'center',
                                 gap:8, marginBottom:5 }}>
-                    <RiskPill level={r.risk_level} />
+                    <RiskPill record={r} />
                     {!r.synced_at && (
                       <span style={{ fontSize:'0.75rem',
                                      color:'var(--color-medium)',

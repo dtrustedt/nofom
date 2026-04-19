@@ -181,6 +181,12 @@ export function runTriage(input) {
     urgency_level:        urgencyLevel.level,   // immediate | priority | scheduled
     urgency_color:        urgencyLevel.color,   // red | yellow | green
 
+    // Backward-compatible risk_level — mapped from urgency
+    // immediate → HIGH, priority → MEDIUM, scheduled → LOW
+    risk_level: urgencyLevel.level === 'immediate' ? 'HIGH'
+              : urgencyLevel.level === 'priority'  ? 'MEDIUM'
+              : 'LOW',
+
     // Explainability (non-negotiable per Engineering Review)
     triggering_findings:  triggeringFindings,
     explanation_summary:  explanationSummary,

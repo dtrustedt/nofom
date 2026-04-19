@@ -20,29 +20,33 @@ const RISK_META = {
 }
 
 // ─────────────────────────────────────────────────────────────
+// FACILITY TYPE MAPS  (module-level so every component can use them)
+// ─────────────────────────────────────────────────────────────
+const FACILITY_TYPE_LABEL = {
+  primary:   'Primary',
+  secondary: 'Secondary',
+  tertiary:  'Tertiary'
+}
+
+const FACILITY_TYPE_COLOR = {
+  primary:   '#1a6b3a',
+  secondary: '#c45c00',
+  tertiary:  '#0a3d6b'
+}
+
+// ─────────────────────────────────────────────────────────────
 // REFERRAL LETTER GENERATOR
 // ─────────────────────────────────────────────────────────────
-  function buildReferralLetter({ patient_name, patient_gender, age_months,
-                                  assessed_at, risk_level, risk_score,
-                                  referral, explanation, symptoms,
-                                  facility_name, facility_type }) {
+function buildReferralLetter({ patient_name, patient_gender, age_months,
+                                assessed_at, risk_level, risk_score,
+                                referral, explanation, symptoms,
+                                facility_name, facility_type }) {
   const ageYears  = Math.floor(age_months / 12)
   const ageMos    = age_months % 12
   const ageStr    = ageYears > 0
     ? `${ageYears} year${ageYears !== 1 ? 's' : ''} ${ageMos > 0 ? `${ageMos} month${ageMos !== 1 ? 's' : ''}` : ''}`.trim()
     : `${ageMos} month${ageMos !== 1 ? 's' : ''}`
 
-  const FACILITY_TYPE_LABEL = {
-    primary:   'Primary',
-    secondary: 'Secondary',
-    tertiary:  'Tertiary'
-  }
-
-  const FACILITY_TYPE_COLOR = {
-    primary:   '#1a6b3a',
-    secondary: '#c45c00',
-    tertiary:  '#0a3d6b'
-  }
   // Format gender for letter
   const genderStr = patient_gender && patient_gender !== 'unknown'
     ? patient_gender.charAt(0).toUpperCase() + patient_gender.slice(1)
@@ -101,6 +105,7 @@ professional. Please attach clinical notes at the receiving
 facility.
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`
 }
+
 // ─────────────────────────────────────────────────────────────
 // REFERRAL LETTER DRAWER
 // ─────────────────────────────────────────────────────────────
@@ -270,8 +275,6 @@ function Slide1({ result, goNext }) {
           <p style={{ margin:'2px 0 0', fontSize:'0.8125rem', color:'var(--color-text-muted)' }}>
             Age: {ageYears > 0 ? `${ageYears}y ` : ''}{ageMos > 0 ? `${ageMos}m` : ''}
             {ageYears === 0 && ageMos === 0 ? `${age_months} months` : ''}
-          
-      {/* Gender — NEW */}
             {patient_gender && patient_gender !== 'unknown'
               ? ` · ${patient_gender.charAt(0).toUpperCase() + patient_gender.slice(1)}`
               : ''}
@@ -323,7 +326,7 @@ function Slide1({ result, goNext }) {
         </div>
       </div>
 
-      {/* Context chips — in Slide1, after the risk badge */}
+      {/* Context chips */}
       <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginBottom:12 }}>
         <span className="nf-chip">📅 {duration_label}</span>
         <span className="nf-chip">👶 {age_modifier?.label}</span>
@@ -622,7 +625,7 @@ export default function TriageResult() {
       flexDirection: 'column',
       background: 'var(--color-surface-alt)',
       fontFamily: 'var(--font-sans)',
-      overflow: 'hidden'    /* No page scroll — slides handle internal scroll */
+      overflow: 'hidden'
     }}>
       <Header />
 
@@ -637,13 +640,7 @@ export default function TriageResult() {
         }}/>
       </div>
 
-      {/* ── SWIPE VIEWPORT ─────────────────────────────────
-          The only reliable cross-browser pattern:
-          - overflow-x: scroll (not auto) on the container
-          - scroll-snap-type: x mandatory
-          - each slide: flex: 0 0 100% so it takes exactly the viewport width
-          - NO percentage widths on the flex parent — let the slides define it
-      ────────────────────────────────────────────────── */}
+      {/* ── SWIPE VIEWPORT ── */}
       <div
         ref={viewportRef}
         onScroll={handleScroll}
@@ -656,10 +653,8 @@ export default function TriageResult() {
           WebkitOverflowScrolling: 'touch',
           scrollbarWidth: 'none',
           msOverflowStyle: 'none',
-          /* No max-width here — let each slide be exactly viewport wide */
         }}
       >
-        {/* Each slide is flex: 0 0 100% — that's the key */}
         {[
           <Slide1 key="s1" result={lastTriageResult} goNext={goNext} />,
           <Slide2 key="s2" referral={referral} goNext={goNext} goPrev={goPrev}
@@ -670,9 +665,9 @@ export default function TriageResult() {
                   onNewAssessment={() => navigate('/triage/new')} />
         ].map((slide, i) => (
           <div key={i} style={{
-            flex: '0 0 100%',          /* exact viewport width, never shrinks */
+            flex: '0 0 100%',
             width: '100%',
-            maxWidth: 520,             /* comfortable on large screens */
+            maxWidth: 520,
             height: '100%',
             overflowY: 'hidden',
             scrollSnapAlign: 'start',

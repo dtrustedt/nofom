@@ -165,6 +165,8 @@ export default function NewTriage() {
         facility_id:        selectedFacilityId     || workerProfile?.facility_id || null,
         facility_name:      selectedFacility?.name || null,
         risk_level:         triageResult.risk_level,
+        urgency_level:      triageResult.urgency_level,
+        urgency_color:      triageResult.urgency_color,
         risk_score:         triageResult.risk_score,
         score_breakdown:    triageResult.score_breakdown,
         explanation:        triageResult.explanation,

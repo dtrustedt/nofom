@@ -14,9 +14,14 @@ import { SYMPTOMS } from '../../shared/triageSchema.js'
 // RISK CONFIGURATION
 // ─────────────────────────────────────────────────────────────
 const RISK_META = {
-  HIGH:   { Icon: AlertOctagon,  bg: '#c8102e', label: 'HIGH RISK',   sub: 'Urgent referral required' },
-  MEDIUM: { Icon: AlertTriangle, bg: '#c45c00', label: 'MEDIUM RISK', sub: 'Referral recommended' },
-  LOW:    { Icon: CheckCircle,   bg: '#1a6b3a', label: 'LOW RISK',    sub: 'Monitor and educate' }
+  // Legacy keys
+  HIGH:      { Icon: AlertOctagon,  bg: '#c8102e', label: 'HIGH RISK',   sub: 'Urgent referral required' },
+  MEDIUM:    { Icon: AlertTriangle, bg: '#c45c00', label: 'MEDIUM RISK', sub: 'Referral recommended' },
+  LOW:       { Icon: CheckCircle,   bg: '#1a6b3a', label: 'LOW RISK',    sub: 'Monitor and educate' },
+  // Canonical urgency keys — map to same display
+  immediate: { Icon: AlertOctagon,  bg: '#c8102e', label: 'HIGH RISK',   sub: 'Urgent referral required' },
+  priority:  { Icon: AlertTriangle, bg: '#c45c00', label: 'MEDIUM RISK', sub: 'Referral recommended' },
+  scheduled: { Icon: CheckCircle,   bg: '#1a6b3a', label: 'LOW RISK',    sub: 'Monitor and educate' },
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -242,10 +247,10 @@ function SlideNav({ onPrev, prevLabel, onNext, nextLabel }) {
 // SLIDE 1 — Risk score
 // ─────────────────────────────────────────────────────────────
 function Slide1({ result, goNext }) {
-  const { risk_level, risk_score, max_possible_score,
+  const { risk_level, urgency_level, urgency_color, risk_score, max_possible_score,
           age_modifier, duration_label, override_applied,
           primary_count, patient_name, age_months, patient_gender, facility_name, facility_type } = result
-  const meta  = RISK_META[risk_level] || RISK_META.LOW
+  const meta  = RISK_META[risk_level] || RISK_META[urgency_level] || RISK_META.LOW
   const Icon  = meta.Icon
   const pct   = Math.min(100, Math.round((risk_score / (max_possible_score || 200)) * 100))
   const ageYears = Math.floor(age_months / 12)
