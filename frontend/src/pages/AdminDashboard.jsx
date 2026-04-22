@@ -156,6 +156,10 @@ export default function AdminDashboard() {
     risk_level: '', worker_id: '', page: 1
   })
 
+  const [pipelineData,      setPipelineData]      = useState(null)
+  const [pipelineLoading,   setPipelineLoading]   = useState(false)
+  const [selectedEncounter, setSelectedEncounter] = useState(null)
+
   const authHeaders = useCallback(() => ({
     'Content-Type': 'application/json',
     Authorization: `Bearer ${session?.access_token}`
@@ -334,6 +338,10 @@ export default function AdminDashboard() {
           <button style={tabStyle('workers')}
             onClick={() => setActiveTab('workers')}>
             Workers ({workers.length})
+          </button>
+          <button style={tabStyle('pipeline')}
+            onClick={() => setActiveTab('pipeline')}>
+            Pipeline Dev
           </button>
         </div>
 
@@ -548,6 +556,275 @@ export default function AdminDashboard() {
                 </button>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* ── Pipeline Dev tab ─────────────────────────────── */}
+        {activeTab === 'pipeline' && (
+          <div>
+            <div className="nf-alert nf-alert-info" style={{ marginBottom:16 }}>
+              <span>
+                Developer view. Shows canonical pipeline data for any encounter:
+                Encounter → Reporter → Observation[] → TriageAssessment → ReferralDecision.
+              </span>
+            </div>
+
+            {/* Encounter ID input */}
+            <div className="nf-card" style={{ marginBottom:12 }}>
+              <label className="nf-label">Encounter ID</label>
+              <div style={{ display:'flex', gap:8 }}>
+                <input
+                  className="nf-input"
+                  type="text"
+                  placeholder="Paste encounter_id UUID…"
+                  value={selectedEncounter || ''}
+                  onChange={e => setSelectedEncounter(e.target.value)}
+                  style={{ flex:1, fontFamily:'var(--font-mono)', fontSize:'0.8125rem' }}
+                />
+                <button
+                  onClick={async () => {
+                    if (!selectedEncounter) return
+                    setPipelineLoading(true)
+                    try {
+                      // Fetch all pipeline entities in parallel
+                      const [obsRes, triageRes, referralRes, followupRes] =
+                        await Promise.all([
+                          fetch(`${API_BASE}/api/admin/observations/${selectedEncounter}`,
+                            { headers: { Authorization: `Bearer ${session?.access_token}` } }),
+                          fetch(`${API_BASE}/api/triage?encounter_id=${selectedEncounter}`,
+                            { headers: { Authorization: `Bearer ${session?.access_token}` } }),
+                          fetch(`${API_BASE}/api/admin/referrals/${selectedEncounter}`,
+                            { headers: { Authorization: `Bearer ${session?.access_token}` } }),
+                          fetch(`${API_BASE}/api/followup/encounter/${selectedEncounter}`,
+                            { headers: { Authorization: `Bearer ${session?.access_token}` } })
+                        ])
+                      const [obs, triage, referral, followup] = await Promise.all([
+                        obsRes.json(), triageRes.json(),
+                        referralRes.json(), followupRes.json()
+                      ])
+                      setPipelineData({ obs, triage, referral, followup })
+                    } catch (err) {
+                      console.error(err)
+                    } finally {
+                      setPipelineLoading(false)
+                    }
+                  }}
+                  className="nf-btn nf-btn-primary"
+                  disabled={!selectedEncounter || pipelineLoading}
+                >
+                  {pipelineLoading ? <span className="nf-spinner"/> : 'Inspect'}
+                </button>
+              </div>
+            </div>
+
+            {pipelineData && (
+              <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+
+                {/* Observations — canonical codes */}
+                <div className="nf-card">
+                  <p className="nf-section-title" style={{ marginBottom:10 }}>
+                    Observations ({pipelineData.obs?.data?.length || 0} rows)
+                  </p>
+                  {(pipelineData.obs?.data || []).map((o, i) => (
+                    <div key={i} style={{
+                      padding:'8px 0',
+                      borderBottom:'1px solid var(--color-border)',
+                      display:'flex', justifyContent:'space-between',
+                      alignItems:'flex-start', gap:8
+                    }}>
+                      <div>
+                        <p style={{ margin:0, fontFamily:'var(--font-mono)',
+                                    fontSize:'0.8125rem', fontWeight:600,
+                                    color:'var(--color-primary)' }}>
+                          {o.canonical_code}
+                        </p>
+                        <p style={{ margin:'2px 0 0', fontSize:'0.8125rem',
+                                    color:'var(--color-text-muted)' }}>
+                          {o.body_system} · {o.observation_type}
+                          {o.duration_days ? ` · ${o.duration_days}d` : ''}
+                        </p>
+                      </div>
+                      <span style={{
+                        fontSize:'0.6875rem', fontWeight:700,
+                        padding:'2px 8px', borderRadius:999,
+                        background:'var(--color-primary-light)',
+                        color:'var(--color-primary)',
+                        flexShrink:0
+                      }}>
+                        {o.value_type}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Triage assessment canonical fields */}
+                <div className="nf-card">
+                  <p className="nf-section-title" style={{ marginBottom:10 }}>
+                    Triage Assessment
+                  </p>
+                  {(() => {
+                    const t = Array.isArray(pipelineData.triage?.data)
+                      ? pipelineData.triage.data[0]
+                      : pipelineData.triage
+                    if (!t) return (
+                      <p style={{ fontSize:'0.875rem', color:'var(--color-text-muted)' }}>
+                        No triage data found
+                      </p>
+                    )
+                    const fields = [
+                      ['urgency_level',     t.urgency_level],
+                      ['urgency_color',     t.urgency_color],
+                      ['assessment_mode',   t.assessment_mode],
+                      ['assessment_version', t.assessment_version],
+                      ['escalation_flag',   String(t.escalation_flag)],
+                      ['override_applied',  String(t.override_applied)],
+                      ['risk_score',        t.risk_score],
+                      ['rule_version',      t.rule_version || '1.0.0']
+                    ]
+                    return fields.map(([key, val]) => (
+                      <div key={key} style={{
+                        display:'flex', justifyContent:'space-between',
+                        padding:'6px 0',
+                        borderBottom:'1px solid var(--color-border)',
+                        gap:8
+                      }}>
+                        <span style={{ fontFamily:'var(--font-mono)',
+                                       fontSize:'0.8125rem',
+                                       color:'var(--color-text-muted)' }}>
+                          {key}
+                        </span>
+                        <span style={{ fontFamily:'var(--font-mono)',
+                                       fontSize:'0.8125rem', fontWeight:600,
+                                       color:'var(--color-text-primary)' }}>
+                          {val ?? '—'}
+                        </span>
+                      </div>
+                    ))
+                  })()}
+
+                  {/* Triggering findings */}
+                  {(() => {
+                    const t = Array.isArray(pipelineData.triage?.data)
+                      ? pipelineData.triage.data[0]
+                      : pipelineData.triage
+                    const findings = t?.triggering_findings || []
+                    if (findings.length === 0) return null
+                    return (
+                      <div style={{ marginTop:10 }}>
+                        <p style={{ fontSize:'0.75rem', fontWeight:700,
+                                    color:'var(--color-text-muted)',
+                                    letterSpacing:'0.06em', textTransform:'uppercase',
+                                    margin:'0 0 8px' }}>
+                          Triggering findings
+                        </p>
+                        {findings.map((f, i) => (
+                          <div key={i} style={{
+                            display:'flex', alignItems:'center',
+                            gap:8, padding:'5px 0',
+                            borderBottom:'1px solid var(--color-border)'
+                          }}>
+                            <span style={{
+                              fontFamily:'var(--font-mono)', fontSize:'0.8125rem',
+                              fontWeight:600, color:'var(--color-primary)'
+                            }}>
+                              {f.canonical_code}
+                            </span>
+                            <span style={{ fontSize:'0.75rem',
+                                           color:'var(--color-text-muted)' }}>
+                              {f.body_system}
+                            </span>
+                            {f.is_red_flag && (
+                              <span style={{
+                                fontSize:'0.6875rem', fontWeight:700,
+                                color:'var(--color-high)', marginLeft:'auto'
+                              }}>
+                                RED FLAG
+                              </span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )
+                  })()}
+                </div>
+
+                {/* Referral */}
+                <div className="nf-card">
+                  <p className="nf-section-title" style={{ marginBottom:10 }}>
+                    Referral Decision
+                  </p>
+                  {(pipelineData.referral?.data || [pipelineData.referral])
+                    .filter(Boolean)
+                    .map((r, i) => (
+                      <div key={i}>
+                        {[
+                          ['referral_target_type', r.referral_target_type],
+                          ['referral_timeframe',   r.referral_timeframe],
+                          ['referral_status',      r.referral_status],
+                          ['referral_needed',      String(r.referral_needed)]
+                        ].map(([key, val]) => (
+                          <div key={key} style={{
+                            display:'flex', justifyContent:'space-between',
+                            padding:'6px 0',
+                            borderBottom:'1px solid var(--color-border)', gap:8
+                          }}>
+                            <span style={{ fontFamily:'var(--font-mono)',
+                                           fontSize:'0.8125rem',
+                                           color:'var(--color-text-muted)' }}>
+                              {key}
+                            </span>
+                            <span style={{ fontFamily:'var(--font-mono)',
+                                           fontSize:'0.8125rem', fontWeight:600,
+                                           color:'var(--color-text-primary)' }}>
+                              {val ?? '—'}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    ))}
+                </div>
+
+                {/* Follow-up */}
+                <div className="nf-card">
+                  <p className="nf-section-title" style={{ marginBottom:10 }}>
+                    Follow-up Outcomes ({pipelineData.followup?.data?.length || 0})
+                  </p>
+                  {(pipelineData.followup?.data || []).length === 0 ? (
+                    <p style={{ fontSize:'0.875rem', color:'var(--color-text-muted)' }}>
+                      No follow-up recorded yet
+                    </p>
+                  ) : (pipelineData.followup.data.map((f, i) => (
+                    <div key={i} style={{
+                      padding:'8px 0',
+                      borderBottom:'1px solid var(--color-border)'
+                    }}>
+                      {[
+                        ['diagnosis_status',    f.diagnosis_status],
+                        ['referral_completed',  String(f.referral_completed)],
+                        ['patient_reached',     String(f.patient_reached)],
+                        ['time_to_diagnosis_days', f.time_to_diagnosis_days ?? '—']
+                      ].map(([key, val]) => (
+                        <div key={key} style={{
+                          display:'flex', justifyContent:'space-between', padding:'4px 0'
+                        }}>
+                          <span style={{ fontFamily:'var(--font-mono)',
+                                         fontSize:'0.8125rem',
+                                         color:'var(--color-text-muted)' }}>
+                            {key}
+                          </span>
+                          <span style={{ fontFamily:'var(--font-mono)',
+                                         fontSize:'0.8125rem', fontWeight:600,
+                                         color:'var(--color-text-primary)' }}>
+                            {val}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )))}
+                </div>
+
+              </div>
+            )}
           </div>
         )}
       </main>

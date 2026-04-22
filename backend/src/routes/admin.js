@@ -201,4 +201,33 @@ router.get('/assessment/:id', async (req, res, next) => {
   } catch (err) { next(err) }
 })
 
+// Add to admin.js after existing routes
+
+// ── GET /api/admin/observations/:encounter_id ────────────────
+router.get('/observations/:encounter_id', async (req, res, next) => {
+  try {
+    const { data, error } = await supabase
+      .from('observations')
+      .select('*')
+      .eq('encounter_id', req.params.encounter_id)
+      .order('created_at')
+
+    if (error) throw error
+    res.json({ data: data || [] })
+  } catch (err) { next(err) }
+})
+
+// ── GET /api/admin/referrals/:encounter_id ───────────────────
+router.get('/referrals/:encounter_id', async (req, res, next) => {
+  try {
+    const { data, error } = await supabase
+      .from('referrals')
+      .select('*')
+      .eq('encounter_id', req.params.encounter_id)
+      .order('created_at', { ascending: false })
+
+    if (error) throw error
+    res.json({ data: data || [] })
+  } catch (err) { next(err) }
+})
 module.exports = router

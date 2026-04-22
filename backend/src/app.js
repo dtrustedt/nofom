@@ -18,6 +18,10 @@ const app = express()
 
 const adminRoutes   = require('./routes/admin')
 
+const followupRoutes = require('./routes/followup')
+
+const diagnosticRoutes = require('./routes/diagnostics')
+
 // ── CORS ─────────────────────────────────────────────────────
 const ALLOWED_ORIGINS = [
   process.env.FRONTEND_URL,
@@ -74,6 +78,8 @@ app.use('/api/triage',   generalLimiter, triageRoutes)
 app.use('/api/patients', generalLimiter, patientRoutes)
 app.use('/api/sync',     syncLimiter,    syncRoutes)
 app.use('/api/admin',    adminRoutes)
+app.use('/api/followup', followupRoutes)
+app.use('/api/diagnostics', diagnosticRoutes)
 
 // ── Error handler ─────────────────────────────────────────────
 app.use(errorHandler)

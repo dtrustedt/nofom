@@ -17,6 +17,12 @@ db.version(2).stores({
   sync_queue:         '++id, entity_type, local_id, status, created_at, last_attempted_at'
 })
 
+db.version(3).stores({
+  patients:           '++_localId, &local_id, age_months, created_at, synced_at',
+  triage_assessments: '++_localId, &local_id, patient_local_id, patient_name, risk_level, urgency_level, submitted_at, synced_at, has_followup',
+  sync_queue:         '++id, entity_type, local_id, status, created_at, last_attempted_at'
+})
+
 // ── Patient ops ──────────────────────────────────────────────
 export async function savePatientLocally(patientData) {
   const local_id = patientData.local_id || crypto.randomUUID()
@@ -112,4 +118,34 @@ export async function markSyncItemFailed(id, error) {
 
 export async function getPendingSyncCount() {
   return db.sync_queue.where('status').equals('pending').count()
+}
+
+// ── Follow-up operations ─────────────────────────────────────
+
+export async function saveFollowupLocally(followupData) {
+  const local_id = followupData.local_id || crypto.randomUUID()
+  const record = {
+    ...followupData,
+    local_id,
+    created_at:  new Date().toISOString(),
+    synced_at:   null
+  }
+
+  // Store against the triage local_id so we can look it up
+  await db.triage_assessments
+    .where('local_id')
+    .equals(followupData.triage_local_id)
+    .modify({ has_followup: true, followup_status: followupData.diagnosis_status })
+
+  // Store in sync queue as a followup entity
+  await addToSyncQueue('followup', local_id)
+
+  // Store in a simple key in the triage record itself for offline display
+  return record
+}
+
+export async function getFollowupForTriage(triageLocalId) {
+  // Followups are stored on the triage record directly for offline access
+  const record = await getTriageByLocalId(triageLocalId)
+  return record?.followup || null
 }
