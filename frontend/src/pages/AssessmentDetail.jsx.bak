@@ -238,40 +238,6 @@ function LetterDrawer({ record, onClose }) {
 
 // ── Follow-up form ────────────────────────────────────────────
 function FollowUpTab({ record, session }) {
-  // ── Guard: record must be synced before follow-up can be recorded ──
-  if (!record.encounter_id) {
-    return (
-      <div style={{ padding:'24px 0', textAlign:'center' }}>
-        <div style={{
-          width:56, height:56, borderRadius:'50%',
-          background:'var(--color-medium-bg)',
-          border:'2px solid var(--color-medium-border)',
-          display:'flex', alignItems:'center',
-          justifyContent:'center', margin:'0 auto 14px',
-          fontSize:'1.5rem'
-        }}>
-          ⏳
-        </div>
-        <p style={{ fontWeight:700, fontSize:'1rem',
-                    color:'var(--color-text-primary)', margin:'0 0 8px' }}>
-          Record not yet synced
-        </p>
-        <p style={{ fontSize:'0.875rem', color:'var(--color-text-muted)',
-                    lineHeight:1.55, maxWidth:280, margin:'0 auto' }}>
-          Follow-up can only be recorded after this assessment has synced
-          to the server. Connect to the internet and the sync will happen
-          automatically.
-        </p>
-        <div className="nf-alert nf-alert-warning" style={{ marginTop:16, textAlign:'left' }}>
-          <AlertTriangle size={14} style={{ flexShrink:0, marginTop:1 }} />
-          <span>
-            Once synced, return to this record and the Follow-up tab will be available.
-          </span>
-        </div>
-      </div>
-    )
-  }
-
   const [form, setForm] = useState({
     patient_reached:              true,
     referral_completed:           null,
@@ -324,9 +290,9 @@ function FollowUpTab({ record, session }) {
 
     try {
       const payload = {
-        encounter_id:                  record.encounter_id,
-        triage_assessment_id:          record.server_id || null,
-        patient_reached:               form.patient_reached,
+        encounter_id:                 record.encounter_id || null,
+        triage_assessment_id:         record.server_id   || null,
+        patient_reached:              form.patient_reached,
         referral_completed:           form.referral_completed,
         symptoms_persist:             form.symptoms_persist,
         diagnosis_status:             form.diagnosis_status,
@@ -573,300 +539,6 @@ function FollowUpTab({ record, session }) {
   )
 }
 
-
-// frontend/src/pages/AssessmentDetail.jsx
-// Add this component before the AssessmentDetail function
-
-const AVAILABLE_TESTS = [
-  { value: 'cbc',                label: 'Full Blood Count (CBC)',      system: 'hematologic' },
-  { value: 'peripheral_smear',   label: 'Peripheral Blood Smear',      system: 'hematologic' },
-  { value: 'ultrasound',         label: 'Abdominal Ultrasound',        system: 'abdominal' },
-  { value: 'xray',               label: 'Chest X-Ray',                 system: 'respiratory' },
-  { value: 'ct_scan',            label: 'CT Scan',                     system: 'general' },
-  { value: 'mri',                label: 'MRI',                         system: 'neurologic' },
-  { value: 'bone_marrow_biopsy', label: 'Bone Marrow Biopsy',          system: 'hematologic' },
-  { value: 'urinalysis',         label: 'Urinalysis',                  system: 'genitourinary' },
-  { value: 'lft',                label: 'Liver Function Tests (LFT)',  system: 'abdominal' },
-  { value: 'rft',                label: 'Renal Function Tests (RFT)',  system: 'genitourinary' },
-  { value: 'other',              label: 'Other (specify in reason)',   system: 'general' },
-]
-
-const SYSTEM_COLOR = {
-  hematologic:   'var(--color-high)',
-  abdominal:     'var(--color-medium)',
-  neurologic:    'var(--color-primary)',
-  respiratory:   '#0073e6',
-  genitourinary: '#6d28d9',
-  general:       'var(--color-text-muted)'
-}
-
-function DiagnosticsTab({ record, session }) {
-  const [selectedTests, setSelectedTests] = useState([])
-  const [reason,        setReason]        = useState('')
-  const [submitting,    setSubmitting]    = useState(false)
-  const [submitted,     setSubmitted]     = useState(false)
-  const [existing,      setExisting]      = useState([])
-  const [loadingExisting, setLoadingExisting] = useState(false)
-  const [error,         setError]         = useState('')
-
-  // Load existing requests if synced
-  useEffect(() => {
-    if (!record.encounter_id || !session?.access_token) return
-    setLoadingExisting(true)
-    fetch(`${API_BASE}/api/diagnostics/encounter/${record.encounter_id}`, {
-      headers: { Authorization: `Bearer ${session.access_token}` }
-    })
-      .then(r => r.json())
-      .then(data => setExisting(data.data || []))
-      .catch(console.warn)
-      .finally(() => setLoadingExisting(false))
-  }, [record.encounter_id])
-
-  const toggleTest = (val) => setSelectedTests(prev =>
-    prev.includes(val) ? prev.filter(t => t !== val) : [...prev, val]
-  )
-
-  if (!record.encounter_id) return (
-    <div style={{ padding:'24px 0', textAlign:'center' }}>
-      <div style={{
-        width:56, height:56, borderRadius:'50%',
-        background:'var(--color-medium-bg)',
-        border:'2px solid var(--color-medium-border)',
-        display:'flex', alignItems:'center', justifyContent:'center',
-        margin:'0 auto 14px', fontSize:'1.5rem'
-      }}>⏳</div>
-      <p style={{ fontWeight:700, fontSize:'1rem',
-                  color:'var(--color-text-primary)', margin:'0 0 8px' }}>
-        Sync required
-      </p>
-      <p style={{ fontSize:'0.875rem', color:'var(--color-text-muted)',
-                  lineHeight:1.55, maxWidth:280, margin:'0 auto' }}>
-        Diagnostic requests are linked to encounters.
-        This record must sync before tests can be requested.
-      </p>
-    </div>
-  )
-
-  const handleSubmit = async () => {
-    if (selectedTests.length === 0) {
-      setError('Please select at least one test.')
-      return
-    }
-    setSubmitting(true)
-    setError('')
-    try {
-      const res = await fetch(`${API_BASE}/api/diagnostics`, {
-        method:  'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization:  `Bearer ${session?.access_token}`
-        },
-        body: JSON.stringify({
-          encounter_id:         record.encounter_id,
-          triage_assessment_id: record.server_id || null,
-          requested_tests:      selectedTests,
-          request_reason:       reason || null,
-          result_status:        'pending'
-        })
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Failed to submit request')
-      setSubmitted(true)
-      setExisting(prev => [data, ...prev])
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
-  const STATUS_COLOR = {
-    pending:      { bg:'var(--color-medium-bg)',  color:'var(--color-medium-text)', label:'Pending' },
-    completed:    { bg:'var(--color-low-bg)',      color:'var(--color-low-text)',    label:'Completed' },
-    abnormal:     { bg:'var(--color-high-bg)',     color:'var(--color-high-text)',   label:'Abnormal' },
-    normal:       { bg:'var(--color-low-bg)',      color:'var(--color-low-text)',    label:'Normal' },
-    inconclusive: { bg:'#f5f0ff',                  color:'#6d28d9',                  label:'Inconclusive' },
-  }
-
-  return (
-    <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
-
-      {/* Existing requests */}
-      {loadingExisting && (
-        <p style={{ fontSize:'0.875rem', color:'var(--color-text-muted)',
-                    textAlign:'center', padding:'12px 0' }}>
-          Loading existing requests…
-        </p>
-      )}
-
-      {existing.length > 0 && (
-        <div className="nf-card">
-          <p className="nf-section-title" style={{ marginBottom:10 }}>
-            Existing Requests ({existing.length})
-          </p>
-          {existing.map((req, i) => {
-            const sc = STATUS_COLOR[req.result_status] || STATUS_COLOR.pending
-            return (
-              <div key={i} style={{
-                padding:'10px 0',
-                borderBottom:'1px solid var(--color-border)',
-                display:'flex', justifyContent:'space-between',
-                alignItems:'flex-start', gap:8
-              }}>
-                <div style={{ flex:1 }}>
-                  <p style={{ margin:0, fontSize:'0.875rem', fontWeight:600,
-                              color:'var(--color-text-primary)' }}>
-                    {(req.requested_tests || [])
-                      .map(t => AVAILABLE_TESTS.find(at => at.value === t)?.label || t)
-                      .join(' · ')}
-                  </p>
-                  {req.request_reason && (
-                    <p style={{ margin:'3px 0 0', fontSize:'0.8125rem',
-                                color:'var(--color-text-muted)' }}>
-                      {req.request_reason}
-                    </p>
-                  )}
-                  <p style={{ margin:'3px 0 0', fontSize:'0.75rem',
-                              color:'var(--color-text-muted)' }}>
-                    {new Date(req.created_at).toLocaleDateString('en-GB', {
-                      day:'2-digit', month:'short', year:'numeric'
-                    })}
-                  </p>
-                </div>
-                <span style={{
-                  fontSize:'0.75rem', fontWeight:700,
-                  padding:'3px 10px', borderRadius:999,
-                  background: sc.bg, color: sc.color,
-                  flexShrink:0
-                }}>
-                  {sc.label}
-                </span>
-              </div>
-            )
-          })}
-        </div>
-      )}
-
-      {/* New request form */}
-      {!submitted ? (
-        <>
-          <div className="nf-card">
-            <p style={{ margin:'0 0 4px', fontWeight:600, fontSize:'0.9rem',
-                        color:'var(--color-text-primary)' }}>
-              Request Diagnostic Tests
-            </p>
-            <p style={{ margin:'0 0 12px', fontSize:'0.8125rem',
-                        color:'var(--color-text-muted)' }}>
-              Select tests to request at the referral facility.
-              These are recorded against the encounter for tracking.
-            </p>
-
-            <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
-              {AVAILABLE_TESTS.map(test => {
-                const selected = selectedTests.includes(test.value)
-                return (
-                  <label key={test.value} style={{
-                    display:'flex', alignItems:'center', gap:10,
-                    padding:'9px 12px',
-                    border:`1.5px solid ${selected
-                      ? SYSTEM_COLOR[test.system] || 'var(--color-accent)'
-                      : 'var(--color-border)'}`,
-                    borderRadius:'var(--radius-md)',
-                    background: selected ? 'var(--color-primary-light)' : 'var(--color-surface)',
-                    cursor:'pointer', transition:'all 120ms'
-                  }}>
-                    <div className={`nf-checkbox-box ${selected ? 'is-checked' : ''}`}
-                      style={selected ? {
-                        background: SYSTEM_COLOR[test.system] || 'var(--color-primary)',
-                        borderColor: SYSTEM_COLOR[test.system] || 'var(--color-primary)'
-                      } : {}}>
-                      {selected && (
-                        <svg viewBox="0 0 12 12" width="12" height="12">
-                          <path d="M2 6l3 3 5-5" stroke="white" strokeWidth="2"
-                                fill="none" strokeLinecap="round" strokeLinejoin="round"/>
-                        </svg>
-                      )}
-                    </div>
-                    <span style={{ fontSize:'0.9rem', flex:1,
-                                   fontWeight: selected ? 600 : 400,
-                                   color:'var(--color-text-primary)' }}>
-                      {test.label}
-                    </span>
-                    <span style={{
-                      fontSize:'0.6875rem', fontWeight:600,
-                      color: SYSTEM_COLOR[test.system] || 'var(--color-text-muted)',
-                      textTransform:'uppercase', letterSpacing:'0.04em'
-                    }}>
-                      {test.system}
-                    </span>
-                    <input type="checkbox" className="sr-only"
-                      checked={selected}
-                      onChange={() => toggleTest(test.value)} />
-                  </label>
-                )
-              })}
-            </div>
-          </div>
-
-          <div className="nf-card">
-            <label className="nf-label">Clinical reason (optional)</label>
-            <textarea className="nf-input" rows={2}
-              placeholder="e.g. Suspected leukemia — require CBC to assess bone marrow function"
-              value={reason}
-              onChange={e => setReason(e.target.value)}
-              style={{ resize:'vertical', minHeight:60 }} />
-          </div>
-
-          {error && (
-            <div className="nf-alert nf-alert-danger">
-              <AlertTriangle size={14} style={{ flexShrink:0, marginTop:1 }} />
-              <span>{error}</span>
-            </div>
-          )}
-
-          <button
-            onClick={handleSubmit}
-            disabled={submitting || selectedTests.length === 0}
-            className="nf-btn nf-btn-primary nf-btn-full nf-btn-large"
-          >
-            {submitting ? <span className="nf-spinner"/> : null}
-            {submitting
-              ? 'Submitting…'
-              : `Request ${selectedTests.length > 0 ? selectedTests.length : ''} Test${selectedTests.length !== 1 ? 's' : ''}`}
-          </button>
-        </>
-      ) : (
-        <div style={{ padding:'24px 0', textAlign:'center' }}>
-          <div style={{
-            width:56, height:56, borderRadius:'50%',
-            background:'var(--color-low-bg)',
-            border:'2px solid var(--color-low-border)',
-            display:'flex', alignItems:'center',
-            justifyContent:'center', margin:'0 auto 14px'
-          }}>
-            <CheckCircle size={24} color="var(--color-low)" />
-          </div>
-          <p style={{ fontWeight:700, fontSize:'1rem',
-                      color:'var(--color-text-primary)', margin:'0 0 6px' }}>
-            Request submitted
-          </p>
-          <p style={{ fontSize:'0.875rem', color:'var(--color-text-muted)', margin:0 }}>
-            {selectedTests.length} test{selectedTests.length !== 1 ? 's' : ''} requested
-            and linked to this encounter in Supabase.
-          </p>
-          <button
-            onClick={() => { setSubmitted(false); setSelectedTests([]); setReason('') }}
-            className="nf-btn nf-btn-secondary"
-            style={{ marginTop:14 }}
-          >
-            Request more tests
-          </button>
-        </div>
-      )}
-    </div>
-  )
-}
-
 // ── Main page ─────────────────────────────────────────────────
 export default function AssessmentDetail() {
   const { id }    = useParams()
@@ -1020,11 +692,6 @@ export default function AssessmentDetail() {
           <button style={tabStyle('followup')}  onClick={() => setActiveTab('followup')}>
             Follow-up
           </button>
-
-          <button style={tabStyle('diagnostics')} onClick={() => setActiveTab('diagnostics')}>
-            Diagnostics
-          </button>
-
         </div>
 
         {/* Result tab */}
@@ -1243,11 +910,6 @@ export default function AssessmentDetail() {
 
         <div style={{ height:16 }}/>
       </main>
-
-        {/* Diagnostics tab */}
-        {activeTab === 'diagnostics' && (
-          <DiagnosticsTab record={record} session={session} />
-        )}
 
       {/* Action bar */}
       <div className="nf-sticky-bar">

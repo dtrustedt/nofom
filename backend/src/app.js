@@ -22,6 +22,8 @@ const followupRoutes = require('./routes/followup')
 
 const diagnosticRoutes = require('./routes/diagnostics')
 
+const { schemaVersionHeaders } = require('./middleware/schemaVersion')
+
 // ── CORS ─────────────────────────────────────────────────────
 const ALLOWED_ORIGINS = [
   process.env.FRONTEND_URL,
@@ -66,6 +68,11 @@ const syncLimiter = rateLimit({
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }))
 app.use(morgan('combined'))
 app.use(express.json({ limit: '500kb' }))
+
+
+// After cors(), before routes:
+app.use(schemaVersionHeaders)
+
 
 // ── Public routes ─────────────────────────────────────────────
 app.get('/health', (req, res) => res.json({
