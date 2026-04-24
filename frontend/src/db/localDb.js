@@ -59,13 +59,16 @@ export async function getTriageByLocalId(local_id) {
   return db.triage_assessments.where('local_id').equals(local_id).first()
 }
 
-export async function markTriageSynced(local_id, server_id) {
-  await db.triage_assessments.where('local_id').equals(local_id).modify({
-    synced_at: new Date().toISOString(),
-    server_id
-  })
+// Replace the existing markTriageSynced function:
+export async function markTriageSynced(local_id, server_id, encounter_id) {
+  await db.triage_assessments
+    .where('local_id').equals(local_id)
+    .modify({
+      synced_at:   new Date().toISOString(),
+      server_id,
+      encounter_id: encounter_id || null   // ← now stored locally
+    })
 }
-
 
 // Add to frontend/src/db/localDb.js
 

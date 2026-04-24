@@ -238,6 +238,40 @@ function LetterDrawer({ record, onClose }) {
 
 // ── Follow-up form ────────────────────────────────────────────
 function FollowUpTab({ record, session }) {
+  // ── Guard: record must be synced before follow-up can be recorded ──
+  if (!record.encounter_id) {
+    return (
+      <div style={{ padding:'24px 0', textAlign:'center' }}>
+        <div style={{
+          width:56, height:56, borderRadius:'50%',
+          background:'var(--color-medium-bg)',
+          border:'2px solid var(--color-medium-border)',
+          display:'flex', alignItems:'center',
+          justifyContent:'center', margin:'0 auto 14px',
+          fontSize:'1.5rem'
+        }}>
+          ⏳
+        </div>
+        <p style={{ fontWeight:700, fontSize:'1rem',
+                    color:'var(--color-text-primary)', margin:'0 0 8px' }}>
+          Record not yet synced
+        </p>
+        <p style={{ fontSize:'0.875rem', color:'var(--color-text-muted)',
+                    lineHeight:1.55, maxWidth:280, margin:'0 auto' }}>
+          Follow-up can only be recorded after this assessment has synced
+          to the server. Connect to the internet and the sync will happen
+          automatically.
+        </p>
+        <div className="nf-alert nf-alert-warning" style={{ marginTop:16, textAlign:'left' }}>
+          <AlertTriangle size={14} style={{ flexShrink:0, marginTop:1 }} />
+          <span>
+            Once synced, return to this record and the Follow-up tab will be available.
+          </span>
+        </div>
+      </div>
+    )
+  }
+
   const [form, setForm] = useState({
     patient_reached:              true,
     referral_completed:           null,
@@ -290,9 +324,9 @@ function FollowUpTab({ record, session }) {
 
     try {
       const payload = {
-        encounter_id:                 record.encounter_id || null,
-        triage_assessment_id:         record.server_id   || null,
-        patient_reached:              form.patient_reached,
+        encounter_id:                  record.encounter_id,
+        triage_assessment_id:          record.server_id || null,
+        patient_reached:               form.patient_reached,
         referral_completed:           form.referral_completed,
         symptoms_persist:             form.symptoms_persist,
         diagnosis_status:             form.diagnosis_status,

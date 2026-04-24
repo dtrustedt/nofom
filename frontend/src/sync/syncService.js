@@ -23,8 +23,8 @@ export async function syncPendingRecords(authToken) {
     try {
       if (item.entity_type === 'triage_assessment') {
         const result = await syncTriageRecord(item, authToken)
-        await markSyncItemComplete(item.id)
-        await markTriageSynced(item.local_id, result.triage_id)
+	await markSyncItemComplete(item.id)
+	await markTriageSynced(item.local_id, result.triage_id, result.encounter_id)
         console.log(`[Sync] ✅ ${item.local_id} → ${result.triage_id}`)
         synced++
       }
