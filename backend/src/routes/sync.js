@@ -120,7 +120,7 @@ router.post('/', verifyToken, async (req, res, next) => {
         results.push({
           local_id,
           triage_id:      data.id,
-          encounter_id:   encounter?.encounter_id || null, // ← ADD THIS
+        //  encounter_id:   encounter?.encounter_id || null, // ← ADD THIS
           status:         'synced',
           schema_version: '1.0.0',
           rule_version:   '1.0.0'
