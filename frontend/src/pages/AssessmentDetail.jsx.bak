@@ -601,15 +601,14 @@ const SYSTEM_COLOR = {
 }
 
 function DiagnosticsTab({ record, session }) {
-  const [selectedTests, setSelectedTests] = useState([])
-  const [reason,        setReason]        = useState('')
-  const [submitting,    setSubmitting]    = useState(false)
-  const [submitted,     setSubmitted]     = useState(false)
-  const [existing,      setExisting]      = useState([])
-  const [loadingExisting, setLoadingExisting] = useState(false)
-  const [error,         setError]         = useState('')
+  const [selectedTests,    setSelectedTests]    = useState([])
+  const [reason,           setReason]           = useState('')
+  const [submitting,       setSubmitting]        = useState(false)
+  const [submitted,        setSubmitted]         = useState(false)
+  const [existing,         setExisting]          = useState([])
+  const [loadingExisting,  setLoadingExisting]   = useState(false)
+  const [error,            setError]             = useState('')
 
-  // Load existing requests if synced
   useEffect(() => {
     if (!record.encounter_id || !session?.access_token) return
     setLoadingExisting(true)
@@ -626,8 +625,9 @@ function DiagnosticsTab({ record, session }) {
     prev.includes(val) ? prev.filter(t => t !== val) : [...prev, val]
   )
 
+  // Guard — must be synced
   if (!record.encounter_id) return (
-    <div style={{ padding:'24px 0', textAlign:'center' }}>
+    <div style={{ padding:'32px 16px', textAlign:'center' }}>
       <div style={{
         width:56, height:56, borderRadius:'50%',
         background:'var(--color-medium-bg)',
@@ -640,26 +640,34 @@ function DiagnosticsTab({ record, session }) {
         Sync required
       </p>
       <p style={{ fontSize:'0.875rem', color:'var(--color-text-muted)',
-                  lineHeight:1.55, maxWidth:280, margin:'0 auto' }}>
+                  lineHeight:1.55, maxWidth:280, margin:'0 auto 16px' }}>
         Diagnostic requests are linked to encounters.
         This record must sync before tests can be requested.
       </p>
+      <div className="nf-alert nf-alert-warning">
+        <AlertTriangle size={14} style={{ flexShrink:0, marginTop:1 }} />
+        <span>Connect to the internet — sync happens automatically.</span>
+      </div>
     </div>
   )
 
+  const STATUS_STYLE = {
+    pending:      { bg:'var(--color-medium-bg)',  color:'var(--color-medium-text)' },
+    completed:    { bg:'var(--color-low-bg)',      color:'var(--color-low-text)'   },
+    abnormal:     { bg:'var(--color-high-bg)',     color:'var(--color-high-text)'  },
+    normal:       { bg:'var(--color-low-bg)',      color:'var(--color-low-text)'   },
+    inconclusive: { bg:'#f5f0ff',                  color:'#6d28d9'                 },
+  }
+
   const handleSubmit = async () => {
-    if (selectedTests.length === 0) {
-      setError('Please select at least one test.')
-      return
-    }
-    setSubmitting(true)
-    setError('')
+    if (selectedTests.length === 0) { setError('Please select at least one test.'); return }
+    setSubmitting(true); setError('')
     try {
       const res = await fetch(`${API_BASE}/api/diagnostics`, {
-        method:  'POST',
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization:  `Bearer ${session?.access_token}`
+          Authorization: `Bearer ${session?.access_token}`
         },
         body: JSON.stringify({
           encounter_id:         record.encounter_id,
@@ -670,7 +678,7 @@ function DiagnosticsTab({ record, session }) {
         })
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Failed to submit request')
+      if (!res.ok) throw new Error(data.error || 'Failed to submit')
       setSubmitted(true)
       setExisting(prev => [data, ...prev])
     } catch (err) {
@@ -678,14 +686,6 @@ function DiagnosticsTab({ record, session }) {
     } finally {
       setSubmitting(false)
     }
-  }
-
-  const STATUS_COLOR = {
-    pending:      { bg:'var(--color-medium-bg)',  color:'var(--color-medium-text)', label:'Pending' },
-    completed:    { bg:'var(--color-low-bg)',      color:'var(--color-low-text)',    label:'Completed' },
-    abnormal:     { bg:'var(--color-high-bg)',     color:'var(--color-high-text)',   label:'Abnormal' },
-    normal:       { bg:'var(--color-low-bg)',      color:'var(--color-low-text)',    label:'Normal' },
-    inconclusive: { bg:'#f5f0ff',                  color:'#6d28d9',                  label:'Inconclusive' },
   }
 
   return (
@@ -702,14 +702,15 @@ function DiagnosticsTab({ record, session }) {
       {existing.length > 0 && (
         <div className="nf-card">
           <p className="nf-section-title" style={{ marginBottom:10 }}>
-            Existing Requests ({existing.length})
+            Previous Requests ({existing.length})
           </p>
           {existing.map((req, i) => {
-            const sc = STATUS_COLOR[req.result_status] || STATUS_COLOR.pending
+            const sc = STATUS_STYLE[req.result_status] || STATUS_STYLE.pending
             return (
               <div key={i} style={{
                 padding:'10px 0',
-                borderBottom:'1px solid var(--color-border)',
+                borderBottom: i < existing.length - 1
+                  ? '1px solid var(--color-border)' : 'none',
                 display:'flex', justifyContent:'space-between',
                 alignItems:'flex-start', gap:8
               }}>
@@ -718,28 +719,22 @@ function DiagnosticsTab({ record, session }) {
                               color:'var(--color-text-primary)' }}>
                     {(req.requested_tests || [])
                       .map(t => AVAILABLE_TESTS.find(at => at.value === t)?.label || t)
-                      .join(' · ')}
+                      .join(', ')}
                   </p>
                   {req.request_reason && (
                     <p style={{ margin:'3px 0 0', fontSize:'0.8125rem',
-                                color:'var(--color-text-muted)' }}>
+                                color:'var(--color-text-muted)',
+                                fontStyle:'italic' }}>
                       {req.request_reason}
                     </p>
                   )}
-                  <p style={{ margin:'3px 0 0', fontSize:'0.75rem',
-                              color:'var(--color-text-muted)' }}>
-                    {new Date(req.created_at).toLocaleDateString('en-GB', {
-                      day:'2-digit', month:'short', year:'numeric'
-                    })}
-                  </p>
                 </div>
                 <span style={{
                   fontSize:'0.75rem', fontWeight:700,
                   padding:'3px 10px', borderRadius:999,
-                  background: sc.bg, color: sc.color,
-                  flexShrink:0
+                  background: sc.bg, color: sc.color, flexShrink:0
                 }}>
-                  {sc.label}
+                  {req.result_status}
                 </span>
               </div>
             )
@@ -747,59 +742,103 @@ function DiagnosticsTab({ record, session }) {
         </div>
       )}
 
-      {/* New request form */}
-      {!submitted ? (
+      {/* New request form OR success state */}
+      {submitted ? (
+        <div style={{ padding:'32px 16px', textAlign:'center' }}>
+          <div style={{
+            width:56, height:56, borderRadius:'50%',
+            background:'var(--color-low-bg)',
+            border:'2px solid var(--color-low-border)',
+            display:'flex', alignItems:'center', justifyContent:'center',
+            margin:'0 auto 14px'
+          }}>
+            <CheckCircle size={24} color="var(--color-low)" />
+          </div>
+          <p style={{ fontWeight:700, fontSize:'1rem',
+                      color:'var(--color-text-primary)', margin:'0 0 6px' }}>
+            Request submitted
+          </p>
+          <p style={{ fontSize:'0.875rem', color:'var(--color-text-muted)',
+                      margin:'0 0 16px' }}>
+            {selectedTests.length} test{selectedTests.length !== 1 ? 's' : ''} requested
+            and linked to this encounter.
+          </p>
+          <button
+            onClick={() => { setSubmitted(false); setSelectedTests([]); setReason('') }}
+            className="nf-btn nf-btn-secondary"
+          >
+            Request more tests
+          </button>
+        </div>
+      ) : (
         <>
+          {/* Test selection card */}
           <div className="nf-card">
-            <p style={{ margin:'0 0 4px', fontWeight:600, fontSize:'0.9rem',
+            <p style={{ margin:'0 0 4px', fontWeight:600, fontSize:'0.9375rem',
                         color:'var(--color-text-primary)' }}>
               Request Diagnostic Tests
             </p>
-            <p style={{ margin:'0 0 12px', fontSize:'0.8125rem',
-                        color:'var(--color-text-muted)' }}>
+            <p style={{ margin:'0 0 14px', fontSize:'0.8125rem',
+                        color:'var(--color-text-muted)', lineHeight:1.45 }}>
               Select tests to request at the referral facility.
-              These are recorded against the encounter for tracking.
+              Recorded against the encounter for audit and tracking.
             </p>
 
-            <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+            <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
               {AVAILABLE_TESTS.map(test => {
-                const selected = selectedTests.includes(test.value)
+                const selected   = selectedTests.includes(test.value)
+                const accentColor = SYSTEM_COLOR[test.system] || 'var(--color-text-muted)'
                 return (
-                  <label key={test.value} style={{
-                    display:'flex', alignItems:'center', gap:10,
-                    padding:'9px 12px',
-                    border:`1.5px solid ${selected
-                      ? SYSTEM_COLOR[test.system] || 'var(--color-accent)'
-                      : 'var(--color-border)'}`,
-                    borderRadius:'var(--radius-md)',
-                    background: selected ? 'var(--color-primary-light)' : 'var(--color-surface)',
-                    cursor:'pointer', transition:'all 120ms'
-                  }}>
-                    <div className={`nf-checkbox-box ${selected ? 'is-checked' : ''}`}
-                      style={selected ? {
-                        background: SYSTEM_COLOR[test.system] || 'var(--color-primary)',
-                        borderColor: SYSTEM_COLOR[test.system] || 'var(--color-primary)'
-                      } : {}}>
+                  <label
+                    key={test.value}
+                    style={{
+                      display:'flex', alignItems:'center', gap:12,
+                      padding:'11px 14px',
+                      border:`1.5px solid ${selected ? accentColor : 'var(--color-border)'}`,
+                      borderRadius:'var(--radius-md)',
+                      background: selected ? 'var(--color-primary-light)' : 'var(--color-surface)',
+                      cursor:'pointer', transition:'all 120ms',
+                      userSelect:'none', WebkitTapHighlightColor:'transparent'
+                    }}
+                  >
+                    {/* Custom checkbox */}
+                    <div style={{
+                      flexShrink:0,
+                      width:20, height:20,
+                      borderRadius:'var(--radius-sm)',
+                      border: `2px solid ${selected ? accentColor : 'var(--color-border-strong)'}`,
+                      background: selected ? accentColor : 'transparent',
+                      display:'flex', alignItems:'center', justifyContent:'center',
+                      transition:'all 120ms'
+                    }}>
                       {selected && (
-                        <svg viewBox="0 0 12 12" width="12" height="12">
+                        <svg viewBox="0 0 12 12" width="11" height="11">
                           <path d="M2 6l3 3 5-5" stroke="white" strokeWidth="2"
                                 fill="none" strokeLinecap="round" strokeLinejoin="round"/>
                         </svg>
                       )}
                     </div>
-                    <span style={{ fontSize:'0.9rem', flex:1,
-                                   fontWeight: selected ? 600 : 400,
-                                   color:'var(--color-text-primary)' }}>
+
+                    {/* Label */}
+                    <span style={{
+                      flex:1, fontSize:'0.9375rem',
+                      fontWeight: selected ? 600 : 400,
+                      color: selected ? 'var(--color-text-primary)' : 'var(--color-text-primary)'
+                    }}>
                       {test.label}
                     </span>
+
+                    {/* System badge */}
                     <span style={{
-                      fontSize:'0.6875rem', fontWeight:600,
-                      color: SYSTEM_COLOR[test.system] || 'var(--color-text-muted)',
-                      textTransform:'uppercase', letterSpacing:'0.04em'
+                      fontSize:'0.6875rem', fontWeight:700,
+                      color: accentColor,
+                      letterSpacing:'0.05em', textTransform:'uppercase',
+                      flexShrink:0
                     }}>
                       {test.system}
                     </span>
-                    <input type="checkbox" className="sr-only"
+
+                    <input type="checkbox" style={{ display:'none' }}
                       checked={selected}
                       onChange={() => toggleTest(test.value)} />
                   </label>
@@ -808,15 +847,20 @@ function DiagnosticsTab({ record, session }) {
             </div>
           </div>
 
+          {/* Reason field */}
           <div className="nf-card">
             <label className="nf-label">Clinical reason (optional)</label>
-            <textarea className="nf-input" rows={2}
+            <textarea
+              className="nf-input"
+              rows={2}
               placeholder="e.g. Suspected leukemia — require CBC to assess bone marrow function"
               value={reason}
               onChange={e => setReason(e.target.value)}
-              style={{ resize:'vertical', minHeight:60 }} />
+              style={{ resize:'vertical', minHeight:60 }}
+            />
           </div>
 
+          {/* Error */}
           {error && (
             <div className="nf-alert nf-alert-danger">
               <AlertTriangle size={14} style={{ flexShrink:0, marginTop:1 }} />
@@ -824,6 +868,7 @@ function DiagnosticsTab({ record, session }) {
             </div>
           )}
 
+          {/* Submit — always visible, disabled when nothing selected */}
           <button
             onClick={handleSubmit}
             disabled={submitting || selectedTests.length === 0}
@@ -832,36 +877,11 @@ function DiagnosticsTab({ record, session }) {
             {submitting ? <span className="nf-spinner"/> : null}
             {submitting
               ? 'Submitting…'
-              : `Request ${selectedTests.length > 0 ? selectedTests.length : ''} Test${selectedTests.length !== 1 ? 's' : ''}`}
+              : selectedTests.length > 0
+                ? `Request ${selectedTests.length} Test${selectedTests.length !== 1 ? 's' : ''} →`
+                : 'Select tests above to continue'}
           </button>
         </>
-      ) : (
-        <div style={{ padding:'24px 0', textAlign:'center' }}>
-          <div style={{
-            width:56, height:56, borderRadius:'50%',
-            background:'var(--color-low-bg)',
-            border:'2px solid var(--color-low-border)',
-            display:'flex', alignItems:'center',
-            justifyContent:'center', margin:'0 auto 14px'
-          }}>
-            <CheckCircle size={24} color="var(--color-low)" />
-          </div>
-          <p style={{ fontWeight:700, fontSize:'1rem',
-                      color:'var(--color-text-primary)', margin:'0 0 6px' }}>
-            Request submitted
-          </p>
-          <p style={{ fontSize:'0.875rem', color:'var(--color-text-muted)', margin:0 }}>
-            {selectedTests.length} test{selectedTests.length !== 1 ? 's' : ''} requested
-            and linked to this encounter in Supabase.
-          </p>
-          <button
-            onClick={() => { setSubmitted(false); setSelectedTests([]); setReason('') }}
-            className="nf-btn nf-btn-secondary"
-            style={{ marginTop:14 }}
-          >
-            Request more tests
-          </button>
-        </div>
       )}
     </div>
   )
@@ -1249,6 +1269,34 @@ export default function AssessmentDetail() {
           <DiagnosticsTab record={record} session={session} />
         )}
 
+      {/* Action bar — hide on tabs that have their own submit buttons */}
+      {activeTab !== 'diagnostics' && activeTab !== 'followup' && (
+        <div className="nf-sticky-bar">
+          <div className="nf-sticky-bar-inner">
+            <div style={{ display:'flex', gap:8 }}>
+              <button onClick={() => setShowLetter(true)}
+                className="nf-btn nf-btn-secondary" style={{ flex:1 }}>
+                <FileText size={15}/> Letter
+              </button>
+              <button onClick={handleReAssess}
+                className="nf-btn nf-btn-secondary" style={{ flex:1 }}>
+                <RefreshCw size={15}/> Re-assess
+              </button>
+              <button onClick={() => setShowDelete(true)} style={{
+                display:'flex', alignItems:'center', justifyContent:'center',
+                gap:6, padding:'12px 14px',
+                background:'var(--color-high-bg)',
+                border:'1.5px solid var(--color-high-border)',
+                borderRadius:'var(--radius-md)',
+                color:'var(--color-high)', fontFamily:'var(--font-sans)',
+                fontWeight:600, fontSize:'0.875rem', cursor:'pointer'
+              }}>
+                <Trash2 size={15}/>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Action bar */}
       <div className="nf-sticky-bar">
         <div className="nf-sticky-bar-inner">

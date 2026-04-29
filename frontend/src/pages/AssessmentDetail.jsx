@@ -382,7 +382,7 @@ function FollowUpTab({ record, session }) {
   )
 
   return (
-    <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+    <div style={{ display:'flex', flexDirection:'column', gap:12, paddingBottom:32 }}>
 
       {/* Patient reached */}
       <div className="nf-card">
@@ -438,7 +438,7 @@ function FollowUpTab({ record, session }) {
         </div>
       </div>
 
-      {/* Diagnosis status — required */}
+      {/* Diagnosis status */}
       <div className="nf-card">
         <p style={{ margin:'0 0 10px', fontWeight:600, fontSize:'0.9rem',
                     color:'var(--color-text-primary)' }}>
@@ -471,7 +471,7 @@ function FollowUpTab({ record, session }) {
         </div>
       </div>
 
-      {/* Confirmed diagnosis label — show if cancer confirmed/suspected */}
+      {/* Confirmed diagnosis label */}
       {(form.diagnosis_status === 'confirmed_cancer' ||
         form.diagnosis_status === 'suspected_cancer') && (
         <div className="nf-card">
@@ -509,7 +509,7 @@ function FollowUpTab({ record, session }) {
         </div>
       )}
 
-      {/* Timing indicators — schema section 8 */}
+      {/* Timing indicators */}
       <div className="nf-card">
         <p style={{ margin:'0 0 4px', fontWeight:600, fontSize:'0.9rem',
                     color:'var(--color-text-primary)' }}>
@@ -569,10 +569,10 @@ function FollowUpTab({ record, session }) {
         {submitting ? <span className="nf-spinner"/> : null}
         {submitting ? 'Saving…' : 'Record Follow-up Outcome'}
       </button>
+
     </div>
   )
 }
-
 
 // frontend/src/pages/AssessmentDetail.jsx
 // Add this component before the AssessmentDetail function
@@ -689,9 +689,9 @@ function DiagnosticsTab({ record, session }) {
   }
 
   return (
-    <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+    <div style={{ display:'flex', flexDirection:'column', gap:12, paddingBottom:32 }}>
 
-      {/* Existing requests */}
+      {/* Loading indicator */}
       {loadingExisting && (
         <p style={{ fontSize:'0.875rem', color:'var(--color-text-muted)',
                     textAlign:'center', padding:'12px 0' }}>
@@ -699,6 +699,7 @@ function DiagnosticsTab({ record, session }) {
         </p>
       )}
 
+      {/* Existing requests */}
       {existing.length > 0 && (
         <div className="nf-card">
           <p className="nf-section-title" style={{ marginBottom:10 }}>
@@ -723,8 +724,7 @@ function DiagnosticsTab({ record, session }) {
                   </p>
                   {req.request_reason && (
                     <p style={{ margin:'3px 0 0', fontSize:'0.8125rem',
-                                color:'var(--color-text-muted)',
-                                fontStyle:'italic' }}>
+                                color:'var(--color-text-muted)', fontStyle:'italic' }}>
                       {req.request_reason}
                     </p>
                   )}
@@ -742,7 +742,7 @@ function DiagnosticsTab({ record, session }) {
         </div>
       )}
 
-      {/* New request form OR success state */}
+      {/* Form or success state */}
       {submitted ? (
         <div style={{ padding:'32px 16px', textAlign:'center' }}>
           <div style={{
@@ -772,7 +772,7 @@ function DiagnosticsTab({ record, session }) {
         </div>
       ) : (
         <>
-          {/* Test selection card */}
+          {/* Test selection */}
           <div className="nf-card">
             <p style={{ margin:'0 0 4px', fontWeight:600, fontSize:'0.9375rem',
                         color:'var(--color-text-primary)' }}>
@@ -786,7 +786,7 @@ function DiagnosticsTab({ record, session }) {
 
             <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
               {AVAILABLE_TESTS.map(test => {
-                const selected   = selectedTests.includes(test.value)
+                const selected    = selectedTests.includes(test.value)
                 const accentColor = SYSTEM_COLOR[test.system] || 'var(--color-text-muted)'
                 return (
                   <label
@@ -794,19 +794,20 @@ function DiagnosticsTab({ record, session }) {
                     style={{
                       display:'flex', alignItems:'center', gap:12,
                       padding:'11px 14px',
-                      border:`1.5px solid ${selected ? accentColor : 'var(--color-border)'}`,
+                      border:`1.5px solid ${selected
+                        ? accentColor : 'var(--color-border)'}`,
                       borderRadius:'var(--radius-md)',
-                      background: selected ? 'var(--color-primary-light)' : 'var(--color-surface)',
+                      background: selected
+                        ? 'var(--color-primary-light)' : 'var(--color-surface)',
                       cursor:'pointer', transition:'all 120ms',
                       userSelect:'none', WebkitTapHighlightColor:'transparent'
                     }}
                   >
-                    {/* Custom checkbox */}
                     <div style={{
-                      flexShrink:0,
-                      width:20, height:20,
+                      flexShrink:0, width:20, height:20,
                       borderRadius:'var(--radius-sm)',
-                      border: `2px solid ${selected ? accentColor : 'var(--color-border-strong)'}`,
+                      border:`2px solid ${selected
+                        ? accentColor : 'var(--color-border-strong)'}`,
                       background: selected ? accentColor : 'transparent',
                       display:'flex', alignItems:'center', justifyContent:'center',
                       transition:'all 120ms'
@@ -814,21 +815,20 @@ function DiagnosticsTab({ record, session }) {
                       {selected && (
                         <svg viewBox="0 0 12 12" width="11" height="11">
                           <path d="M2 6l3 3 5-5" stroke="white" strokeWidth="2"
-                                fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+                                fill="none" strokeLinecap="round"
+                                strokeLinejoin="round"/>
                         </svg>
                       )}
                     </div>
 
-                    {/* Label */}
                     <span style={{
                       flex:1, fontSize:'0.9375rem',
                       fontWeight: selected ? 600 : 400,
-                      color: selected ? 'var(--color-text-primary)' : 'var(--color-text-primary)'
+                      color:'var(--color-text-primary)'
                     }}>
                       {test.label}
                     </span>
 
-                    {/* System badge */}
                     <span style={{
                       fontSize:'0.6875rem', fontWeight:700,
                       color: accentColor,
@@ -847,7 +847,7 @@ function DiagnosticsTab({ record, session }) {
             </div>
           </div>
 
-          {/* Reason field */}
+          {/* Reason */}
           <div className="nf-card">
             <label className="nf-label">Clinical reason (optional)</label>
             <textarea
@@ -860,7 +860,6 @@ function DiagnosticsTab({ record, session }) {
             />
           </div>
 
-          {/* Error */}
           {error && (
             <div className="nf-alert nf-alert-danger">
               <AlertTriangle size={14} style={{ flexShrink:0, marginTop:1 }} />
@@ -868,7 +867,6 @@ function DiagnosticsTab({ record, session }) {
             </div>
           )}
 
-          {/* Submit — always visible, disabled when nothing selected */}
           <button
             onClick={handleSubmit}
             disabled={submitting || selectedTests.length === 0}
@@ -883,6 +881,7 @@ function DiagnosticsTab({ record, session }) {
           </button>
         </>
       )}
+
     </div>
   )
 }
@@ -1269,6 +1268,34 @@ export default function AssessmentDetail() {
           <DiagnosticsTab record={record} session={session} />
         )}
 
+      {/* Action bar — hide on tabs that have their own submit buttons */}
+      {activeTab !== 'diagnostics' && activeTab !== 'followup' && (
+        <div className="nf-sticky-bar">
+          <div className="nf-sticky-bar-inner">
+            <div style={{ display:'flex', gap:8 }}>
+              <button onClick={() => setShowLetter(true)}
+                className="nf-btn nf-btn-secondary" style={{ flex:1 }}>
+                <FileText size={15}/> Letter
+              </button>
+              <button onClick={handleReAssess}
+                className="nf-btn nf-btn-secondary" style={{ flex:1 }}>
+                <RefreshCw size={15}/> Re-assess
+              </button>
+              <button onClick={() => setShowDelete(true)} style={{
+                display:'flex', alignItems:'center', justifyContent:'center',
+                gap:6, padding:'12px 14px',
+                background:'var(--color-high-bg)',
+                border:'1.5px solid var(--color-high-border)',
+                borderRadius:'var(--radius-md)',
+                color:'var(--color-high)', fontFamily:'var(--font-sans)',
+                fontWeight:600, fontSize:'0.875rem', cursor:'pointer'
+              }}>
+                <Trash2 size={15}/>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Action bar */}
       <div className="nf-sticky-bar">
         <div className="nf-sticky-bar-inner">
