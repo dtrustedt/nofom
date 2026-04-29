@@ -1254,81 +1254,80 @@ export default function AssessmentDetail() {
             </div>
           </div>
         )}
+  
+{/* Follow-up tab */}
+{activeTab === 'followup' && (
+  <FollowUpTab record={record} session={session} />
+)}
 
-        {/* Follow-up tab */}
-        {activeTab === 'followup' && (
-          <FollowUpTab record={record} session={session} />
-        )}
+<div style={{ height: 16 }} />
+</main>
 
-        <div style={{ height:16 }}/>
-      </main>
+{/* Diagnostics tab */}
+{activeTab === 'diagnostics' && (
+  <DiagnosticsTab record={record} session={session} />
+)}
 
-        {/* Diagnostics tab */}
-        {activeTab === 'diagnostics' && (
-          <DiagnosticsTab record={record} session={session} />
-        )}
+{/* Action bar — hide on tabs that have their own submit buttons */}
+{activeTab !== 'diagnostics' && activeTab !== 'followup' && (
+  <div className="nf-sticky-bar">
+    <div className="nf-sticky-bar-inner">
+      <div style={{ display: 'flex', gap: 8 }}>
+        <button
+          onClick={() => setShowLetter(true)}
+          className="nf-btn nf-btn-secondary"
+          style={{ flex: 1 }}
+        >
+          <FileText size={15} /> Letter
+        </button>
 
-      {/* Action bar — hide on tabs that have their own submit buttons */}
-      {activeTab !== 'diagnostics' && activeTab !== 'followup' && (
-        <div className="nf-sticky-bar">
-          <div className="nf-sticky-bar-inner">
-            <div style={{ display:'flex', gap:8 }}>
-              <button onClick={() => setShowLetter(true)}
-                className="nf-btn nf-btn-secondary" style={{ flex:1 }}>
-                <FileText size={15}/> Letter
-              </button>
-              <button onClick={handleReAssess}
-                className="nf-btn nf-btn-secondary" style={{ flex:1 }}>
-                <RefreshCw size={15}/> Re-assess
-              </button>
-              <button onClick={() => setShowDelete(true)} style={{
-                display:'flex', alignItems:'center', justifyContent:'center',
-                gap:6, padding:'12px 14px',
-                background:'var(--color-high-bg)',
-                border:'1.5px solid var(--color-high-border)',
-                borderRadius:'var(--radius-md)',
-                color:'var(--color-high)', fontFamily:'var(--font-sans)',
-                fontWeight:600, fontSize:'0.875rem', cursor:'pointer'
-              }}>
-                <Trash2 size={15}/>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-      {/* Action bar */}
-      <div className="nf-sticky-bar">
-        <div className="nf-sticky-bar-inner">
-          <div style={{ display:'flex', gap:8 }}>
-            <button onClick={() => setShowLetter(true)}
-              className="nf-btn nf-btn-secondary" style={{ flex:1 }}>
-              <FileText size={15}/> Letter
-            </button>
-            <button onClick={handleReAssess}
-              className="nf-btn nf-btn-secondary" style={{ flex:1 }}>
-              <RefreshCw size={15}/> Re-assess
-            </button>
-            <button onClick={() => setShowDelete(true)} style={{
-              display:'flex', alignItems:'center', justifyContent:'center',
-              gap:6, padding:'12px 14px',
-              background:'var(--color-high-bg)',
-              border:`1.5px solid var(--color-high-border)`,
-              borderRadius:'var(--radius-md)',
-              color:'var(--color-high)', fontFamily:'var(--font-sans)',
-              fontWeight:600, fontSize:'0.875rem', cursor:'pointer'
-            }}>
-              <Trash2 size={15}/>
-            </button>
-          </div>
-        </div>
+        <button
+          onClick={handleReAssess}
+          className="nf-btn nf-btn-secondary"
+          style={{ flex: 1 }}
+        >
+          <RefreshCw size={15} /> Re-assess
+        </button>
+
+        <button
+          onClick={() => setShowDelete(true)}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 6,
+            padding: '12px 14px',
+            background: 'var(--color-high-bg)',
+            border: '1.5px solid var(--color-high-border)',
+            borderRadius: 'var(--radius-md)',
+            color: 'var(--color-high)',
+            fontFamily: 'var(--font-sans)',
+            fontWeight: 600,
+            fontSize: '0.875rem',
+            cursor: 'pointer',
+          }}
+        >
+          <Trash2 size={15} />
+        </button>
       </div>
+    </div>
+  </div>
+)}
 
-      {showLetter && <LetterDrawer record={record} onClose={() => setShowLetter(false)}/>}
-      {showDelete && (
-        <DeleteDialog record={record}
-          onConfirm={handleDelete}
-          onCancel={() => setShowDelete(false)}/>
-      )}
+{showLetter && (
+  <LetterDrawer
+    record={record}
+    onClose={() => setShowLetter(false)}
+  />
+)}
+
+{showDelete && (
+  <DeleteDialog
+    record={record}
+    onConfirm={handleDelete}
+    onCancel={() => setShowDelete(false)}
+  />
+)}  
     </div>
   )
 }
